@@ -1,7 +1,7 @@
 # Deployment
 
 The display Pi is on a wall, in a room, behind a TV. Nobody should need a
-keyboard or a ladder to change a sensor label. So the Pi pulls from this repo
+keyboard to change a sensor label. So the Pi pulls from this repo
 and applies what it finds, and a push is the only deploy action.
 
 ```

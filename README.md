@@ -1,13 +1,11 @@
 # Protmon
 
 Wall-mounted security alert display for UniFi Protect. A Raspberry Pi drives a
-16:9 screen in a security office or front desk that lights up with large
-flashing text the moment a Protect sensor fires (silent-alarm fob, motion, door,
-and so on), plus a live camera feed for the locations that have one mapped.
+16:9 screen that lights up with large flashing text the moment a Protect
+sensor fires (silent-alarm fob, motion, door, and so on), plus a live camera
+feed for the locations that have one mapped.
 
-It is built to replace the classic bank of labeled strobe lights, each wired to
-its own relay, which does not scale past a handful of sensors. Adding a sensor
-to Protmon is a config entry and a Protect rule, with no new hardware.
+Adding a sensor is a config entry and a Protect rule, with no new hardware.
 
 It also deploys itself. Push to `main`, and the Pi applies the change within a
 minute, config files and all, with no keyboard on the wall. See
@@ -210,8 +208,8 @@ the build order below proceeds. The build order, tracked as milestones, is:
 Step 0, the deploy pipeline, is done, which means steps 1 through 6 ship by
 push rather than by SSH.
 
-Steps 3 and 5 are deliberately apart. A working text-only sign is already better
-than the strobes it replaces, and video is the part most likely to misbehave.
+Steps 3 and 5 are deliberately apart. A working text-only sign is already
+useful on its own, and video is the part most likely to misbehave.
 
 ## Testing
 
