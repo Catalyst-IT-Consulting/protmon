@@ -1,9 +1,9 @@
 # Protmon
 
 Wall-mounted security alert display for UniFi Protect. A Raspberry Pi drives a
-16:9 screen that lights up with large flashing text the moment a Protect
-sensor fires (silent-alarm fob, motion, door, and so on), plus a live camera
-feed for the locations that have one mapped.
+standard monitor or TV that lights up with large flashing text the moment a
+Protect sensor fires (silent-alarm fob, motion, door, and so on), plus a live
+camera feed for the locations that have one mapped.
 
 Adding a sensor is a config entry and a Protect rule, with no new hardware.
 
