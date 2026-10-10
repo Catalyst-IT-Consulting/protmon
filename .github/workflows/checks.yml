@@ -1,0 +1,41 @@
+name: checks
+
+# main is what reaches the wall display, so main has to stay deployable.
+# These checks run on every push, and a green run on main fast-forwards the
+# 'release' branch that the Pi tracks. A red run leaves the Pi where it is.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preflight
+        run: ./deploy/preflight.sh
+
+      - name: Shellcheck
+        run: shellcheck deploy/*.sh deploy/system/usr/local/bin/*
+
+      - name: Deployer self-test
+        run: ./deploy/selftest.sh
+
+      - name: No camera credentials outside the example
+        run: |
+          if git grep -nE 'rtsp://[^[:space:]"]*:[^[:space:]"@]*@' -- \
+               ':!config.example.json' ':!docs/' ':!README.md' ':!.github/'; then
+            echo "::error::Looks like real RTSP credentials are committed. They belong in /etc/protmon/config.json on the Pi only."
+            exit 1
+          fi
+
+      - name: Promote main to release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: git push origin HEAD:refs/heads/release

@@ -1,0 +1,19 @@
+[Unit]
+Description=Protmon: webhook discovery listener (throwaway, replaced in M2)
+Documentation=https://github.com/Catalyst-IT-Consulting/protmon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/protmon/server/discovery.py
+Restart=always
+RestartSec=2
+# Cheap hardening; the dir is created by the deployer, so just allow writes.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/log/protmon
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,26 @@
+{
+  "cameras": {
+    "garage": "rtsp://user:pass@192.0.2.21/stream2",
+    "front_desk": "rtsp://user:pass@192.0.2.22/stream2"
+  },
+  "alerts": {
+    "garage-motion": {
+      "text": "Garage Motion",
+      "priority": 3,
+      "camera": "garage",
+      "duration": 30
+    },
+    "front-desk-panic": {
+      "text": "Front Desk Panic Button",
+      "priority": 1,
+      "camera": "front_desk",
+      "duration": null
+    },
+    "office-panic": {
+      "text": "Office Panic Button",
+      "priority": 1,
+      "camera": null,
+      "duration": null
+    }
+  }
+}

@@ -1,0 +1,12 @@
+[Unit]
+Description=Protmon: poll for updates
+
+[Timer]
+# One cheap git ls-remote per interval. Shortening this does not cost much.
+OnBootSec=90
+OnUnitActiveSec=60
+AccuracySec=5s
+Unit=protmon-deploy.service
+
+[Install]
+WantedBy=timers.target

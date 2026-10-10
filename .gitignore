@@ -1,0 +1,38 @@
+# Real config holds RTSP credentials and the webhook token
+config.json
+*.secret
+.env
+
+# Runtime state and logs
+*.log
+*.jsonl
+state.json
+go2rtc.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Issue-resolver scratch
+.resolver/
+
+# AI and agent tooling
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+AGENTS.md
+.cursor/
+.cursorrules
+.aider*

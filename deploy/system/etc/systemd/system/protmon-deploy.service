@@ -1,0 +1,13 @@
+[Unit]
+Description=Protmon: check for and apply updates
+Documentation=https://github.com/Catalyst-IT-Consulting/protmon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/protmon-update
+# A failed check is normal (no network, preflight rejected a commit). The timer
+# tries again, so do not let a failure mask the next run.
+SuccessExitStatus=0 1
+TimeoutStartSec=300

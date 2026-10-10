@@ -1,0 +1,13 @@
+#!/bin/sh
+# Run the deployer from a copy of itself.
+#
+# update.sh replaces the working tree it lives in. The shell reads a script
+# incrementally, so overwriting it mid-run can corrupt execution. Copying first
+# makes the running deployer immune to the deploy it is performing.
+set -eu
+APP_DIR=${APP_DIR:-/opt/protmon}
+tmp=$(mktemp /tmp/protmon-update.XXXXXX)
+trap 'rm -f "$tmp"' EXIT INT TERM
+cat "$APP_DIR/deploy/update.sh" >"$tmp"
+chmod +x "$tmp"
+"$tmp" "$@"

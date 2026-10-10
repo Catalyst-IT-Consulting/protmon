@@ -1,0 +1,231 @@
+# Protmon
+
+Wall-mounted security alert display for UniFi Protect. A Raspberry Pi drives a
+16:9 screen in a security office or front desk that lights up with large
+flashing text the moment a Protect sensor fires (silent-alarm fob, motion, door,
+and so on), plus a live camera feed for the locations that have one mapped.
+
+It is built to replace the classic bank of labeled strobe lights, each wired to
+its own relay, which does not scale past a handful of sensors. Adding a sensor
+to Protmon is a config entry and a Protect rule, with no new hardware.
+
+It also deploys itself. Push to `main`, and the Pi applies the change within a
+minute, config files and all, with no keyboard on the wall. See
+[Deployment](#deployment).
+
+## Status
+
+**Design stage for the application. The deploy pipeline is built and tested.**
+
+`deploy/` works today and is covered by `deploy/selftest.sh` (39 assertions,
+green). Nothing of the alert server, the kiosk page, or the go2rtc integration
+exists yet. Two things gate the first line of application code:
+
+1. The open issues labeled `discovery`, mainly whether Protect's Alarm Manager
+   posts its webhook from the Cloud Key on the LAN or routes it through
+   Ubiquiti's cloud. The whole design assumes LAN only.
+2. The open issues labeled `decision`, starting with the acknowledge mechanism.
+
+Start with the discovery listener (step 1 of the build order below). It is
+throwaway code that answers questions the rest of the system rests on.
+
+## How it works
+
+```
+UniFi Protect (Cloud Key)
+        |  HTTP webhook, LAN only
+        v
+ Pi: alert server (webhook listener + config + state + event log)
+        |  WebSocket (or SSE)
+        v
+ Pi: Chromium kiosk page  <---- WebRTC ----  go2rtc  <---- RTSP ---- cameras
+```
+
+Everything runs on the one Pi. Five pieces:
+
+| Piece | Job |
+| --- | --- |
+| Alert server | Takes webhooks, resolves them against config, owns active-alert state and expiry, writes the event log, pushes state to the page |
+| Kiosk page | Full-screen view of server state: alert banners, video tiles, idle clock, health indicator. Holds no logic of its own |
+| go2rtc | Pulls RTSP from the cameras and hands it to the browser over WebRTC. Browsers cannot play RTSP, so this is required |
+| systemd units | Start and restart all three unattended, on boot and on failure |
+| Deployer | A timer that pulls this repo and applies it, so a push is the only deploy action |
+
+Each Alarm Manager rule gets its own webhook URL, and **the URL path is the
+lookup key**: `/alert/garage-motion` resolves to the `garage-motion` entry in
+config. Nothing depends on parsing the webhook payload, which is what keeps the
+system working regardless of what Protect decides to send.
+
+## Design rules that are not negotiable
+
+This is safety-adjacent. An alert that never appears, or that vanishes quietly,
+is the worst thing the system can do. Three rules follow from that:
+
+- **Text never waits on video.** The banner renders on receipt. The stream is
+  attached afterward, and a camera that is offline or a relay that fails
+  degrades to text-only with a "video unavailable" note. It never blocks or
+  blanks the alert.
+- **A dead sign must not look like a quiet one.** Idle shows a dim clock and an
+  "All clear / system OK" status, never a blank screen. The page flags a lost
+  server connection prominently, and an external heartbeat catches a Pi that has
+  stopped checking in entirely.
+- **Nothing is dropped silently.** Unmapped paths show an "Unmapped alert"
+  banner and get logged. Rejected auth gets logged. Sticky alerts survive a
+  reboot via persisted state. A priority-1 alert never disappears on its own.
+
+## Security posture
+
+- **LAN only, permanently.** The webhook listener must be reachable by the Cloud
+  Key and nothing else. Never port-forward it, never expose it through a tunnel.
+  A spoofed webhook can raise a false alarm or bury a real one.
+- **Two checks on every webhook:** a shared secret token in the URL and an
+  allowlist of the Cloud Key's source IP. Rejections are logged, not just
+  dropped.
+- **RTSP credentials stay on the Pi.** The browser only ever receives a go2rtc
+  stream name. The server generates go2rtc's stream config from the `cameras`
+  section of the config file, so credentials never reach the page.
+- **go2rtc binds to localhost.** Its API and web UI are not on the LAN. The
+  kiosk browser is on the same box.
+- **Firewall:** inbound allows the webhook port from the Cloud Key, plus SSH
+  from the admin network. Nothing else.
+
+## Non-goals
+
+- Internet exposure or remote access.
+- Replacing Protect's own notifications and recording. This is an additional,
+  in-room display.
+- A web UI for editing config. Hand-edited JSON is fine.
+- Camera recording or playback history.
+
+## Stack
+
+Python with FastAPI and a WebSocket endpoint, and a vanilla JS kiosk page with
+no build step. Boring and dependency-light on purpose, since the box runs
+unattended.
+
+## Deployment
+
+The Pi is wall-mounted and unattended, so a change that needs a keyboard is a
+change that does not happen. Push to `main` and the Pi picks it up:
+
+```
+git push main  ->  CI checks  ->  'release' branch  ->  Pi polls every 60s
+                                                          preflight
+                                                          defer if an alert is live
+                                                          apply + restart
+                                                          health check, rollback if sick
+```
+
+Pull-based, not push-based: the design forbids inbound exposure, and a
+GitHub-hosted runner cannot reach the LAN. The Pi makes one outbound
+`git ls-remote` per minute over SSH with a read-only deploy key.
+
+Pi-specific config lives in the repo under `deploy/system/`, which is installed
+to the matching path under `/`. Adding a systemd unit, a logrotate rule, or a
+udev rule for the acknowledge keypad is a file and a push. Files that leave the
+overlay are removed from the Pi, so a deleted unit does not linger.
+
+What a deploy will not do: touch `/etc/protmon/config.json`, restart
+anything while an alert is on screen, leave a broken commit running, or retry a
+known-bad commit on a loop.
+
+```bash
+sudo ./deploy/bootstrap.sh --repo <ssh-url> --key <deploy-key>  # once, on the Pi
+sudo /usr/local/bin/protmon-update --force                     # apply a push now
+sudo touch /etc/protmon/HOLD                           # pause deploys
+cat /var/lib/protmon/deployed.json                     # what is live
+./deploy/selftest.sh                                            # test the deployer
+```
+
+Full detail, including the contract the alert server has to honor for the
+rollback and defer logic to work: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
+## Configuration
+
+A hand-edited JSON file, validated at startup. Cameras and alerts are separate
+sections so several alerts can share a camera and RTSP credentials live in one
+place. Copy [`config.example.json`](config.example.json) to `config.json` and
+edit; `config.json` is gitignored because it holds camera credentials.
+
+```json
+{
+  "cameras": {
+    "garage": "rtsp://user:pass@192.0.2.21/stream2"
+  },
+  "alerts": {
+    "garage-motion": {
+      "text": "Garage Motion",
+      "priority": 3,
+      "camera": "garage",
+      "duration": 30
+    }
+  }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `text` | What the banner says. Written for someone reading it across the room |
+| `priority` | Lower is more urgent. 1 is silent-alarm / life-safety class. Tiers are still an open decision |
+| `camera` | A key into `cameras`, or `null` for text-only (a room with no camera) |
+| `duration` | Seconds until auto-expiry, or `null` for sticky until acknowledged |
+
+Alerts reference cameras **by name**, which is what makes the eventual move to
+UniFi cameras a URL change under `cameras` and nothing more. Use each camera's
+low-resolution H.264 substream: WebRTC support for H.265 is unreliable, and a
+wall display does not need 4K.
+
+Config validation fails loudly and refuses to start on an unknown camera
+reference, a duplicate key, or a bad type. It never silently skips an entry,
+because a skipped entry is a sensor that looks configured and is not.
+
+## Repository layout
+
+```
+docs/
+  DEPLOYMENT.md       How a push reaches the wall, and the deploy contract
+deploy/
+  bootstrap.sh        One-time provisioning of a fresh Pi
+  update.sh           The deployer: pull, preflight, apply, health check, roll back
+  install-system.sh   Installs the deploy/system overlay to /
+  preflight.sh        Validates a commit before it reaches the live tree
+  selftest.sh         Drives update.sh against a throwaway remote
+  deploy.env.example  Per-host deploy settings, copied to /etc
+  system/             Filesystem overlay: everything here lands under / on the Pi
+.github/workflows/
+  checks.yml          Preflight, shellcheck, selftest, then promote main to release
+config.example.json
+```
+
+Application code, the app's systemd units, and the kiosk setup land here as
+the build order below proceeds. The build order, tracked as milestones, is:
+
+1. Discovery listener that logs full webhook requests
+2. Core server: config, webhook auth, active-alert state, event log, WebSocket
+3. Text-only page, tested fully before any video is added
+4. Acknowledge flow and persistence across restart
+5. go2rtc integration, tile layout, stream cap, text-only fallback
+6. Hardening: systemd, kiosk, heartbeat, firewall, rebuild docs
+
+Step 0, the deploy pipeline, is done, which means steps 1 through 6 ship by
+push rather than by SSH.
+
+Steps 3 and 5 are deliberately apart. A working text-only sign is already better
+than the strobes it replaces, and video is the part most likely to misbehave.
+
+## Testing
+
+Every acceptance test (see the go-live milestone) runs with `curl` against the
+webhook endpoint. No real sensors are needed to exercise the full lifecycle:
+mapped and unmapped paths, bad tokens, duplicate triggers, expiry, sticky alerts
+across a reboot, multiple simultaneous alerts, and a killed server.
+
+## Hardware
+
+Raspberry Pi 4B, HDMI to a 32-43" wall-mounted TV or monitor, Chromium
+in kiosk mode. The Pi needs a static IP or DHCP reservation so the Alarm Manager
+rules have a stable target. The display is still open. Together with the Pi 4B, it will
+set the ceiling on simultaneous video tiles.
+
+Keep SD card writes modest. Log rotation is already in place via the overlay.
+NTP must be working, because the event log is the record you will go back to.

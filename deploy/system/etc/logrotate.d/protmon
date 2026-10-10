@@ -1,0 +1,12 @@
+# copytruncate because the server and the deployer hold their log files open.
+/var/log/protmon/*.jsonl {
+    daily
+    rotate 14
+    maxsize 20M
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    su root root
+}
