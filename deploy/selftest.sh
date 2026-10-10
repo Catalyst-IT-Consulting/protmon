@@ -163,7 +163,7 @@ git -C "$T/work" rm -q broken.json
 commit_push "test: fix config"
 
 case_ "7. deploy defers while an alert is on screen"
-printf '{"alerts":[{"key":"front-desk-panic"}]}' >"$T/alerts.json"
+printf '{"alerts":[{"key":"entrance-panic"}]}' >"$T/alerts.json"
 write_env "STATE_URL=file://$T/alerts.json"
 before=$(head_sha)
 rc=$(run)

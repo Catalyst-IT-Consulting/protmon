@@ -1,7 +1,7 @@
 {
   "cameras": {
     "garage": "rtsp://user:pass@192.0.2.21/stream2",
-    "front_desk": "rtsp://user:pass@192.0.2.22/stream2"
+    "entrance": "rtsp://user:pass@192.0.2.22/stream2"
   },
   "alerts": {
     "garage-motion": {
@@ -10,14 +10,14 @@
       "camera": "garage",
       "duration": 30
     },
-    "front-desk-panic": {
-      "text": "Front Desk Panic Button",
+    "entrance-panic": {
+      "text": "Entrance Panic Button",
       "priority": 1,
-      "camera": "front_desk",
+      "camera": "entrance",
       "duration": null
     },
-    "office-panic": {
-      "text": "Office Panic Button",
+    "panic-button": {
+      "text": "Panic Button",
       "priority": 1,
       "camera": null,
       "duration": null
