@@ -142,7 +142,8 @@ ssh-keygen -t ed25519 -f protmon-deploy -C protmon -N ''
 # Add protmon-deploy.pub under the repo's Settings > Deploy keys, write access OFF
 
 # On the Pi
-git clone https://github.com/Catalyst-IT-Consulting/protmon /tmp/bootstrap
+GIT_SSH_COMMAND='ssh -i /path/to/protmon-deploy -o IdentitiesOnly=yes' \
+  git clone git@github.com:Catalyst-IT-Consulting/protmon.git /tmp/bootstrap
 sudo /tmp/bootstrap/deploy/bootstrap.sh \
   --repo git@github.com:Catalyst-IT-Consulting/protmon.git \
   --key  /path/to/protmon-deploy \
