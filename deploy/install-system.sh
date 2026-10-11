@@ -46,6 +46,7 @@ if [ -f "$MANIFEST" ]; then
   while IFS= read -r path; do
     [ -n "$path" ] || continue
     if ! grep -Fxq "$path" "$wanted"; then
+      case $path in /etc/systemd/system/*) "$SYSTEMCTL" disable "${path##*/}" >/dev/null 2>&1 || true ;; esac
       rm -f "$DESTDIR$path"
       log "removed $path"
       case $path in /etc/systemd/system/*) reload=1 ;; esac
@@ -59,4 +60,17 @@ if [ "$reload" = 1 ]; then
   log "systemd daemon-reload"
   "$SYSTEMCTL" daemon-reload
 fi
+
+# Enable units that declare [Install], every run, so a disabled unit self-heals.
+# A failure is logged, not fatal: it must not roll back an otherwise good deploy.
+for f in "$OVERLAY"/etc/systemd/system/*; do
+  grep -qs '^\[Install\]' "$f" || continue
+  unit=${f##*/}
+  "$SYSTEMCTL" is-enabled -q "$unit" >/dev/null 2>&1 && continue
+  if "$SYSTEMCTL" enable "$unit" >/dev/null 2>&1; then
+    log "enabled $unit"
+  else
+    log "enable failed: $unit"
+  fi
+done
 exit 0

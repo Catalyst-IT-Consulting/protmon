@@ -32,6 +32,9 @@ cat >"$T/bin/systemctl" <<'STUB'
 printf '%s\n' "$*" >>"$SELFTEST_T/systemctl.log"
 case $1 in
   cat) grep -Fxq "$2" "$SELFTEST_T/units.txt" 2>/dev/null || exit 1 ;;
+  is-enabled) grep -Fxq "$3" "$SELFTEST_T/enabled.txt" 2>/dev/null || exit 1 ;;
+  enable) printf '%s\n' "$2" >>"$SELFTEST_T/enabled.txt" ;;
+  disable) sed -i "/^$2\$/d" "$SELFTEST_T/enabled.txt" 2>/dev/null || true ;;
   restart)
     if [ -e "$SELFTEST_T/fail_next" ]; then
       rm -f "$SELFTEST_T/fail_next" "$SELFTEST_T/health"
@@ -130,6 +133,8 @@ assert "overlay wrapper installed executable" [ -x "$DESTDIR/usr/local/bin/protm
 assert "deployed.json records the commit" grep -q "\"commit\":\"$target\"" "$T/state/deployed.json"
 assert "daemon-reload after unit install" grep -q 'daemon-reload' "$T/systemctl.log"
 assert "server restarted" grep -q 'restart protmon-server.service' "$T/systemctl.log"
+assert "unit with [Install] enabled" grep -Fxq 'protmon-server.service' "$T/enabled.txt"
+refute "unit without [Install] not enabled" grep -Fxq 'protmon-deploy.service' "$T/enabled.txt"
 
 case_ "4. docs-only change leaves the screen alone"
 : >"$T/systemctl.log"
@@ -151,6 +156,19 @@ commit_push "test: remove overlay file"
 rc=$(run)
 check "exit 0" "$rc" "0"
 refute "stale overlay file removed" [ -f "$DESTDIR/etc/logrotate.d/scratch-rule" ]
+
+U=etc/systemd/system/protmon-scratch.service
+printf '[Unit]\nDescription=scratch\n\n[Service]\nExecStart=/bin/true\n\n[Install]\nWantedBy=multi-user.target\n' >"$T/work/deploy/system/$U"
+commit_push "test: add overlay unit"
+rc=$(run)
+check "exit 0" "$rc" "0"
+assert "new unit enabled" grep -Fxq 'protmon-scratch.service' "$T/enabled.txt"
+git -C "$T/work" rm -q "deploy/system/$U"
+commit_push "test: remove overlay unit"
+rc=$(run)
+check "exit 0" "$rc" "0"
+assert "removed unit disabled" grep -q '^disable protmon-scratch.service' "$T/systemctl.log"
+refute "removed unit file gone" [ -f "$DESTDIR/$U" ]
 
 case_ "6. a commit that fails preflight never reaches the live tree"
 before=$(head_sha)
