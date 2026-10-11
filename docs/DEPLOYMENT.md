@@ -142,7 +142,9 @@ loads `http://127.0.0.1:8080/`. It starts on boot with no login, restarts on a
 crash, and is restarted by the deployer when `web/` changes. The Chromium
 profile lives in tmpfs and is incognito, so there are never restore, first-run,
 translate or update prompts. The compositor has no idle timeout, so the screen
-never blanks or dims, and the page hides the cursor. Raspberry Pi OS Lite has
+never blanks or dims, and the page hides the cursor. A udev rule hides the HDMI
+CEC remotes from the compositor, since they report pointer axes and would
+otherwise put a cursor on screen. Raspberry Pi OS Lite has
 no desktop, so this unit replaces the desktop auto-login.
 
 ```bash

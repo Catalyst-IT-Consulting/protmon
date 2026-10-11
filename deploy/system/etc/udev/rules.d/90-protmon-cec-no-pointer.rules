@@ -1,0 +1,2 @@
+# HDMI CEC remotes report X/Y axes, so libinput treats them as mice and cage draws a cursor.
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{name}=="vc4-hdmi-[0-9]", ENV{LIBINPUT_IGNORE_DEVICE}="1"
