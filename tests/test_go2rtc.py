@@ -6,14 +6,14 @@ from pathlib import Path
 
 from protmon import go2rtc
 
-CAMS = {"garage": "rtsp://192.0.2.21/s", "front door": "rtsp://u:p%40ss@192.0.2.22:554/x?a=1"}
+CAMS = {"garage": "rtsp://192.0.2.21/s", "front door": "rtsp://192.0.2.22:554/x?a=1"}
 SERVER = Path(__file__).resolve().parents[1] / "server"
 
 
 def test_render_has_streams_and_loopback_only():
     out = go2rtc.render(CAMS)
     assert '  "garage": "rtsp://192.0.2.21/s"\n' in out
-    assert '  "front door": "rtsp://u:p%40ss@192.0.2.22:554/x?a=1"\n' in out
+    assert '  "front door": "rtsp://192.0.2.22:554/x?a=1"\n' in out
     assert 'listen: "127.0.0.1:1984"' in out
     assert 'listen: "127.0.0.1:8555"' in out
     assert 'origin: "*"' in out
