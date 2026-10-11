@@ -90,6 +90,11 @@ function syncTiles(list) {
       start(t, cam);
     }
     if (box.children[i] !== t.div) box.insertBefore(t.div, box.children[i] || null);
+    // letterbox bars flash with the first alert on this camera
+    const b = els.get(list.find(a => a.camera === cam).key);
+    const cls = "tile" + b.className.replace("banner", "");
+    if (t.div.className.replace(" bad", "") !== cls) t.div.className = cls;  // watch() restores "bad"
+    t.div.style.cssText = b.style.cssText;
   });
   box.dataset.k = want.length;
   box.style.setProperty("--r", Math.max(want.length - 1, 1));
@@ -155,10 +160,10 @@ function tick() {
       (alerts.length ? "Last known alerts: " + alerts.map(a => a.text).join(" | ") : "");
   }
   const now = new Date();
-  $("clock").textContent = $("stamp-time").textContent =
-    now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  $("stamp-date").textContent = now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  $("clock").textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  $("date").textContent = now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
   document.body.dataset.view = bad ? "lost" : alerts.length ? "alerts" : "idle";
+  for (const a of document.getAnimations()) a.startTime = 0;  // one clock, so video bars flash in step with banners
 }
 
 setInterval(tick, 1000);

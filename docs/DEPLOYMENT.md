@@ -168,8 +168,8 @@ unattended, then leave it 24 hours and confirm nothing dims or blanks.
 Cage runs in `-m extend` mode, so Chromium's one window spans every connected
 output. When the window is about two screens wide (aspect ratio 3:1 or wider)
 the page splits its roles: the left screen shows the video tiles at full
-height, the right screen is a complete text sign (alert banners, idle clock,
-connection-lost screen, and the time and date strip). The video screen is black
+height, the right screen is a complete text sign (alert banners, idle clock
+and date, connection-lost screen). The video screen is black
 when no camera is attached to an alert. To put the video on the right instead,
 point the kiosk at `http://127.0.0.1:8080/?video=right`.
 
