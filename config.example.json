@@ -5,6 +5,7 @@
   },
   "protect": { "address": "192.0.2.10", "interval": 30, "failures": 3 },
   "video": { "max_streams": 2 },
+  "display": { "show_ip": true },
   "alerts": {
     "garage-motion": {
       "text": "Garage Motion",

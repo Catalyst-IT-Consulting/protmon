@@ -254,6 +254,20 @@ seconds, or the stream drops or the camera is offline, the tile shows "video
 unavailable" and the page retries every 15 seconds. The alert text is never
 affected.
 
+### Info area
+
+The idle and connection-lost screens show the running version and the device's
+IP address in the bottom right corner. While the server is unreachable they
+show the last known values. An optional `display` section hides the IP:
+
+```json
+"display": { "show_ip": true }
+```
+
+| Field | Meaning |
+| --- | --- |
+| `show_ip` | Show the device's IPv4 address, `true` or `false`. Default `true` |
+
 ### Protect reachability
 
 An optional `protect` section makes the server check that the Protect console is
@@ -421,7 +435,7 @@ the source IP and request body. It is read-only: retention stays with logrotate.
 ## State feed
 
 Localhost only. `GET /api/state` returns
-`{"alerts": [...], "commit": "<sha>", "server_time": "<ISO-8601>", "clock_synced": true, "max_streams": 2}`, alerts
+`{"alerts": [...], "commit": "<sha>", "server_time": "<ISO-8601>", "clock_synced": true, "max_streams": 2, "ip": "192.0.2.5"}`, alerts
 sorted by priority then first seen. Each alert carries `key`, `text`,
 `priority`, `camera` (the stream name, never a URL), `style` (or `null`), `sound` (or `null`), `first_seen`, `last_seen`
 and `expires_at`.
@@ -434,8 +448,9 @@ the page can tell a dead socket from a quiet one.
 The state and ping messages also carry `clock_synced`, true once
 systemd-timesyncd has synced since boot (it checks the flag file
 `/run/systemd/timesync/synchronized`, overridable with `PROTMON_TIMESYNC_FLAG`).
-While it is false the idle screen shows an amber "Clock not synced" note beside
-the time and date.
+While it is false the idle screen shows an amber "Clock not synced" note in the
+info area. `ip` is the device's IPv4 address, or `null` when `display.show_ip`
+is off or there is no route.
 
 `GET /healthz` returns `{"status": "ok", "commit": "<sha>"}` once the config
 and secrets are loaded and the server is accepting requests.

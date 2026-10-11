@@ -209,3 +209,19 @@ def test_video_defaults_and_override(tmp_path):
 def test_video_rejections(tmp_path, v, msg):
     with pytest.raises(ConfigError, match=msg):
         load(write(tmp_path, {**GOOD, "video": v}))
+
+
+def test_display_defaults_and_override(tmp_path):
+    assert load(write(tmp_path, GOOD))["display"] == {"show_ip": True}
+    assert load(write(tmp_path, {**GOOD, "display": {"show_ip": False}}))["display"] == {"show_ip": False}
+
+
+@pytest.mark.parametrize("v,msg", [
+    ({"show_ip": "yes"}, "show_ip"),
+    ({"show_ip": 1}, "show_ip"),
+    ({"ip": True}, "unknown field.*ip"),
+    (True, "must be an object"),
+])
+def test_display_rejections(tmp_path, v, msg):
+    with pytest.raises(ConfigError, match=msg):
+        load(write(tmp_path, {**GOOD, "display": v}))

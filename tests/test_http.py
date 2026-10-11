@@ -90,7 +90,7 @@ def test_state_shape_and_no_camera_url(cfg_path):
         post(c, "garage-motion")
         post(c, "panic")
         doc = c.get("/api/state").json()
-    assert set(doc) == {"alerts", "commit", "server_time", "clock_synced", "max_streams"}
+    assert set(doc) == {"alerts", "commit", "server_time", "clock_synced", "max_streams", "ip"}
     assert doc["max_streams"] == 2
     assert doc["server_time"][-6] in "+-" and doc["commit"]
     assert [a["key"] for a in doc["alerts"]] == ["panic", "garage-motion"]
@@ -136,3 +136,9 @@ def test_ws_ping_carries_server_time(cfg_path, monkeypatch):
         ws.receive_json()
         ping = ws.receive_json()
     assert ping["type"] == "ping" and ping["server_time"][-6] in "+-"
+
+
+def test_state_ip_hidden(cfg_path):
+    cfg_path.write_text(json.dumps({**json.loads(cfg_path.read_text()), "display": {"show_ip": False}}))
+    with TestClient(app, client=CONSOLE) as c:
+        assert c.get("/api/state").json()["ip"] is None

@@ -7,62 +7,76 @@
 <link rel="stylesheet" href="/admin/web/admin.css">
 </head>
 <body>
-<h1>Protmon admin</h1>
-<section>
-  <h2>Active alerts</h2>
-  <p class="hint">Alerts currently on the wall. Cancelling removes one now.</p>
-  <div id="active"></div>
-</section>
-<section>
-  <h2>Alerts</h2>
-  <p class="hint">Listed in wall order: priority 1 first. Each alert has its own webhook URL for an Alarm Manager rule.</p>
-  <div id="alerts"></div>
-  <button id="add-alert" type="button">Add alert</button>
-</section>
-<section>
-  <h2>Preview</h2>
-  <p class="hint">The wall page showing the alerts ticked "Preview", including unsaved edits. No alert is raised.</p>
-  <div class="row">
-    <label class="inline"><input type="checkbox" id="two-screens">Two screens</label>
-    <button id="fullscreen" type="button">Fullscreen</button>
-  </div>
-  <div id="stage"><iframe id="preview" src="/admin/preview" title="Wall preview"></iframe></div>
-</section>
-<section>
-  <h2>Cameras</h2>
-  <p class="hint">RTSP URLs are shown in full and may contain credentials.</p>
-  <div id="cameras"></div>
-  <button id="add-camera" type="button">Add camera</button>
-</section>
-<section>
-  <h2>Settings</h2>
-  <div id="settings"></div>
-</section>
-<section>
-  <h2>Event log</h2>
-  <p class="hint">Newest first, including rotated files. Read-only.</p>
-  <form id="log-filter" class="row">
-    <label>Key<input name="key" class="short"></label>
-    <label>Event<input name="event" list="event-types" class="short"></label>
-    <label>From<input name="since" type="date"></label>
-    <label>To<input name="until" type="date"></label>
-    <button type="submit">Search</button>
-  </form>
-  <datalist id="event-types">
-    <option value="received"><option value="raised"><option value="refreshed"><option value="cleared"><option value="expired">
-    <option value="unmapped"><option value="rejected-auth"><option value="rejected-admin">
-    <option value="config-reloaded"><option value="config-changed"><option value="config-reload-failed">
-    <option value="protect-unreachable"><option value="protect-restored"><option value="startup">
-  </datalist>
-  <table id="log"><thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Source IP</th><th>Details</th></tr></thead><tbody></tbody></table>
-  <p id="log-status" class="hint"></p>
-  <button id="log-older" type="button" hidden>Older</button>
-</section>
-<footer>
-  <button id="save" type="button">Save</button>
-  <button id="reload" type="button" hidden>Reload</button>
+<header>
+  <h1>Protmon admin</h1>
   <span id="status" role="status"></span>
-</footer>
+  <button id="reload" type="button" hidden>Reload</button>
+  <button id="save" type="button" class="primary" title="Ctrl+S">Save</button>
+</header>
+<div class="layout">
+<main>
+  <section>
+    <div class="section-head">
+      <h2>Alerts</h2>
+      <button id="add-alert" type="button">Add alert</button>
+    </div>
+    <p class="hint">Listed in wall order: priority 1 first. Each alert has its own webhook URL for an Alarm Manager rule.</p>
+    <div id="alerts"></div>
+  </section>
+  <section>
+    <div class="section-head">
+      <h2>Cameras</h2>
+      <button id="add-camera" type="button">Add camera</button>
+    </div>
+    <p class="hint">RTSP URLs are shown in full and may contain credentials.</p>
+    <div id="cameras"></div>
+  </section>
+  <section>
+    <div class="section-head"><h2>Settings</h2></div>
+    <div id="settings"></div>
+  </section>
+  <section>
+    <div class="section-head"><h2>Event log</h2></div>
+    <p class="hint">Newest first, including rotated files. Read-only.</p>
+    <form id="log-filter" class="row" data-nosave>
+      <label>Key<input name="key" class="short"></label>
+      <label>Event<input name="event" list="event-types" class="short"></label>
+      <label>From<input name="since" type="date"></label>
+      <label>To<input name="until" type="date"></label>
+      <button type="submit">Search</button>
+    </form>
+    <datalist id="event-types">
+      <option value="received"><option value="raised"><option value="refreshed"><option value="cleared"><option value="expired">
+      <option value="unmapped"><option value="rejected-auth"><option value="rejected-admin">
+      <option value="config-reloaded"><option value="config-changed"><option value="config-reload-failed">
+      <option value="protect-unreachable"><option value="protect-restored"><option value="startup">
+    </datalist>
+    <div class="table-wrap">
+      <table id="log"><thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Source IP</th><th>Details</th></tr></thead><tbody></tbody></table>
+    </div>
+    <p id="log-status" class="hint"></p>
+    <button id="log-older" type="button" hidden>Older</button>
+  </section>
+</main>
+<aside>
+  <section>
+    <div class="section-head">
+      <h2>Preview</h2>
+      <button id="preview-all" type="button" class="small">All</button>
+      <button id="preview-none" type="button" class="small">None</button>
+      <button id="fullscreen" type="button" class="small">Fullscreen</button>
+    </div>
+    <p class="hint">Alerts ticked "Preview", including unsaved edits. No alert is raised.</p>
+    <div id="stage"><iframe id="preview" src="/admin/preview" title="Wall preview"></iframe></div>
+    <label class="inline"><input type="checkbox" id="two-screens">Two screens</label>
+  </section>
+  <section>
+    <div class="section-head"><h2>Active alerts</h2></div>
+    <p class="hint">Alerts currently on the wall. Cancelling removes one now.</p>
+    <div id="active"></div>
+  </section>
+</aside>
+</div>
 <script src="/admin/web/sounds.js"></script>
 <script src="/admin/web/admin.js"></script>
 </body>

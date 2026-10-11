@@ -139,7 +139,9 @@ function onMsg(m) {
   commit = m.commit;
   alerts = m.alerts;
   cap = m.max_streams || 2;
-  $("commit").textContent = commit.slice(0, 7);
+  $("version").textContent = "Version: " + commit.slice(0, 7);
+  $("ip").textContent = "IP: " + m.ip;
+  $("ip").hidden = !m.ip;
   render(alerts);
   if (!PREVIEW) sound(alerts);
 }

@@ -3,6 +3,7 @@ import hmac
 import ipaddress
 import os
 import signal
+import socket
 import subprocess
 import sys
 from contextlib import asynccontextmanager
@@ -48,6 +49,7 @@ def reload_config(app) -> bool:
     cameras_changed = cfg["cameras"] != app.state.config["cameras"]
     app.state.config = cfg
     app.state.log.write("config-reloaded", alerts=len(cfg["alerts"]), cameras=len(cfg["cameras"]))
+    app.state.alerts.on_change()  # push display settings to the wall now
     if cameras_changed:
         _restart_go2rtc(app)
     return True
@@ -122,9 +124,20 @@ def _clock_synced():
     return Path(os.environ.get("PROTMON_TIMESYNC_FLAG", "/run/systemd/timesync/synchronized")).exists()
 
 
+def _device_ip():
+    """Primary IPv4 address: the source the kernel picks for the default route. Sends nothing."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("10.255.255.255", 1))
+            return s.getsockname()[0]
+    except OSError:
+        return None
+
+
 def _state_doc():
     return {"alerts": app.state.alerts.snapshot(), "commit": COMMIT, "server_time": _now(),
-            "clock_synced": _clock_synced(), "max_streams": app.state.config["video"]["max_streams"]}
+            "clock_synced": _clock_synced(), "max_streams": app.state.config["video"]["max_streams"],
+            "ip": _device_ip() if app.state.config["display"]["show_ip"] else None}
 
 
 PAGE_FILES = {"app.js": "text/javascript", "sounds.js": "text/javascript", "style.css": "text/css"}

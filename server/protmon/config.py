@@ -15,6 +15,7 @@ TONES = ("chime", "ding-dong", "bell", "beep", "double-beep", "triple-beep", "pu
          "alarm", "klaxon", "siren", "warble", "rising", "falling", "chirp")
 MAX_PLAYS = 20
 VIDEO_FIELDS = {"max_streams"}
+DISPLAY_FIELDS = {"show_ip"}
 PROTECT_FIELDS = {"address", "interval", "failures"}
 HOST_RE = re.compile(r"[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?")
 
@@ -122,9 +123,23 @@ def _video(v):
     return {"max_streams": n}
 
 
+def _display(d):
+    if d is None:
+        d = {}
+    if not isinstance(d, dict):
+        raise ConfigError("display must be an object")
+    unknown = sorted(set(d) - DISPLAY_FIELDS)
+    if unknown:
+        raise ConfigError(f"display: unknown field(s) {', '.join(unknown)}")
+    show = d.get("show_ip", True)
+    if not isinstance(show, bool):
+        raise ConfigError(f"display: show_ip must be true or false, got {show!r}")
+    return {"show_ip": show}
+
+
 def validate(raw):
-    if not isinstance(raw, dict) or not {"cameras", "alerts"} <= set(raw) <= {"cameras", "alerts", "protect", "video"}:
-        raise ConfigError("top level must be an object with 'cameras' and 'alerts', and optionally 'protect' and 'video'")
+    if not isinstance(raw, dict) or not {"cameras", "alerts"} <= set(raw) <= {"cameras", "alerts", "protect", "video", "display"}:
+        raise ConfigError("top level must be an object with 'cameras' and 'alerts', and optionally 'protect', 'video' and 'display'")
     cameras, alerts = raw["cameras"], raw["alerts"]
     if not isinstance(cameras, dict) or not isinstance(alerts, dict):
         raise ConfigError("'cameras' and 'alerts' must be objects")
@@ -136,6 +151,7 @@ def validate(raw):
         "alerts": {k: _alert(k, a, cameras) for k, a in alerts.items()},
         "protect": _protect(raw.get("protect")),
         "video": _video(raw.get("video")),
+        "display": _display(raw.get("display")),
     }
 
 
