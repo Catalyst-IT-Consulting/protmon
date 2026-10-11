@@ -114,6 +114,7 @@ check "exit 0" "$rc" "0"
 check "no deploy started" "$(logged start)" "0"
 
 case_ "2. HOLD pauses deploys"
+mkdir -p "$T/work/docs"
 date >"$T/work/docs/.touch1"
 commit_push "test: first change"
 target=$(origin_sha)
