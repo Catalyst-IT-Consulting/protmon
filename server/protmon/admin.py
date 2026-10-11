@@ -1,8 +1,10 @@
 import asyncio
+import base64
 import contextlib
 import copy
 import gzip
 import hashlib
+import hmac
 import ipaddress
 import json
 import os
@@ -26,19 +28,41 @@ MUTATING = {"PUT", "POST", "DELETE", "PATCH"}
 _write_lock = threading.Lock()
 
 
-def _allowed(conn: HTTPConnection) -> bool:
+def _denied(conn: HTTPConnection):
+    """Return None if allowed, else (status, reason)."""
     host = conn.client.host if conn.client else None
     try:
         ok = host in LOCAL or any(ipaddress.ip_address(host) in n for n in conn.app.state.admin_networks)
     except ValueError:
         ok = False
+    password = conn.app.state.admin_password
     if not ok:
-        conn.app.state.log.write("rejected-admin", source_ip=host, path=conn.url.path)
-    return ok
+        res = 403, None
+    elif not password:
+        res = 403, "no admin password set"
+    else:
+        scheme, _, cred = conn.headers.get("authorization", "").partition(" ")
+        try:
+            sent = base64.b64decode(cred, validate=True).partition(b":")[2] if scheme.lower() == "basic" else b""
+        except ValueError:
+            sent = b""
+        if hmac.compare_digest(sent, password.encode()):
+            return None
+        res = 401, "bad credentials"
+    extra = {"reason": res[1]} if res[1] else {}
+    conn.app.state.log.write("rejected-admin", source_ip=host, path=conn.url.path, **extra)
+    return res
+
+
+def _allowed(conn: HTTPConnection) -> bool:
+    return _denied(conn) is None
 
 
 def admin_only(request: Request):
-    if not _allowed(request):
+    if denied := _denied(request):
+        status, _ = denied
+        if status == 401:
+            raise HTTPException(401, "unauthorized", {"WWW-Authenticate": 'Basic realm="protmon admin"'})
         raise HTTPException(403, "forbidden")
     # A custom header forces a CORS preflight, which a cross-site page cannot pass.
     if request.method in MUTATING and (
@@ -166,9 +190,10 @@ def get_config(request: Request):
         data, raw = _read(request.app.state.config_path)
     except (OSError, ValueError) as e:
         raise HTTPException(500, f"cannot read config: {e}")
-    if isinstance(raw.get("cameras"), dict):
-        raw["cameras"] = dict.fromkeys(raw["cameras"])  # camera URLs hold credentials
-    return {"config": raw, "version": _version(data)}
+    st = request.app.state
+    secrets = {"token": st.token, "allowed_ips": sorted(map(str, st.allowed_ips)),
+               "admin_networks": [str(n) for n in st.admin_networks]}
+    return {"config": raw, "version": _version(data), "secrets": secrets}
 
 
 @router.put("/config")

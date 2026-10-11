@@ -152,6 +152,11 @@ def load_secrets(env):
         raise ConfigError(f"PROTMON_ALLOWED_IPS: {e}") from e
 
 
+def load_admin_password(env):
+    """The shared /admin password from PROTMON_ADMIN_PASSWORD; empty means admin is refused."""
+    return env.get("PROTMON_ADMIN_PASSWORD", "").strip()
+
+
 def load_admin_networks(env):
     """Networks allowed to use /admin besides localhost, from PROTMON_ADMIN_NETWORKS (optional)."""
     raw = [p.strip() for p in env.get("PROTMON_ADMIN_NETWORKS", "").split(",") if p.strip()]

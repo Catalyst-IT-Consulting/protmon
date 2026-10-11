@@ -101,7 +101,8 @@ a push.
 Still to do by hand on this box, once:
 
   1. $ETC_DIR/config.json       cameras and alerts, holds RTSP credentials
-  2. $ETC_DIR/secrets.env       PROTMON_TOKEN and PROTMON_ALLOWED_IPS
+  2. $ETC_DIR/secrets.env       PROTMON_TOKEN, PROTMON_ALLOWED_IPS and
+                                 PROTMON_ADMIN_PASSWORD
                                  (optional PROTMON_ADMIN_NETWORKS)
   3. Static IP or DHCP reservation, so Alarm Manager has a stable target
   4. Firewall: webhook port inbound from the Cloud Key, port 8080 and SSH from admin only

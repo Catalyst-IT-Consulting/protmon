@@ -1,3 +1,4 @@
+import base64
 import copy
 import json
 import stat
@@ -12,12 +13,13 @@ from conftest import GOOD
 
 LOCAL = ("127.0.0.1", 40000)
 H = {"x-protmon-admin": "1"}
+AUTH = {"authorization": "Basic " + base64.b64encode(b"admin:pw").decode()}
 URL = "rtsp://192.0.2.21/s"
 
 
 @pytest.fixture
 def client(cfg_path):
-    with TestClient(app, client=LOCAL) as c:
+    with TestClient(app, client=LOCAL, headers=AUTH) as c:
         yield c
 
 
@@ -30,14 +32,14 @@ def put(c, cfg, version, headers=H):
 
 
 def test_outside_network_forbidden(cfg_path):
-    with TestClient(app, client=("198.51.100.30", 1)) as c:
+    with TestClient(app, client=("198.51.100.30", 1), headers=AUTH) as c:
         assert c.get("/admin/api/config").status_code == 403
         assert put(c, GOOD, "x").status_code == 403
 
 
 def test_admin_network_allowed(cfg_path, monkeypatch):
     monkeypatch.setenv("PROTMON_ADMIN_NETWORKS", "198.51.100.0/24")
-    with TestClient(app, client=("198.51.100.30", 1)) as c:
+    with TestClient(app, client=("198.51.100.30", 1), headers=AUTH) as c:
         assert c.get("/admin/api/config").status_code == 200
 
 
@@ -48,10 +50,42 @@ def test_bad_admin_networks_fail_startup(cfg_path, monkeypatch):
             pass
 
 
-def test_get_redacts_camera_urls(client):
+def test_get_shows_camera_urls_and_secrets(client):
     doc = load(client)
-    assert doc["config"]["cameras"] == {"garage": None}
-    assert URL not in json.dumps(doc)
+    assert doc["config"]["cameras"] == {"garage": URL}
+    assert doc["secrets"] == {"token": "s3cret", "allowed_ips": ["127.0.0.1", "198.51.100.30"], "admin_networks": []}
+    assert "pw" not in json.dumps(doc)
+
+
+def test_no_password_set_refuses_admin(cfg_path, monkeypatch, events):
+    monkeypatch.delenv("PROTMON_ADMIN_PASSWORD")
+    with TestClient(app, client=LOCAL, headers=AUTH) as c:
+        assert c.get("/admin").status_code == 403
+        assert c.get("/admin/api/config").status_code == 403
+    assert [e["reason"] for e in events() if e["event"] == "rejected-admin"] == ["no admin password set"] * 2
+
+
+@pytest.mark.parametrize("hdr", [{}, {"authorization": "Basic " + base64.b64encode(b"admin:nope").decode()},
+                                 {"authorization": "Basic !!"}, {"authorization": "Bearer pw"}])
+def test_bad_credentials_unauthorized(cfg_path, events, hdr):
+    with TestClient(app, client=LOCAL, headers=hdr) as c:
+        r = c.get("/admin")
+        assert r.status_code == 401 and r.headers["www-authenticate"] == 'Basic realm="protmon admin"'
+        assert c.get("/admin/api/config").status_code == 401
+    ev = [e for e in events() if e["event"] == "rejected-admin"]
+    assert len(ev) == 2 and ev[0]["source_ip"] == "127.0.0.1"
+
+
+def test_password_with_colon_and_any_username(cfg_path, monkeypatch):
+    monkeypatch.setenv("PROTMON_ADMIN_PASSWORD", "a:b")
+    hdr = {"authorization": "Basic " + base64.b64encode(b"whoever:a:b").decode()}
+    with TestClient(app, client=LOCAL, headers=hdr) as c:
+        assert c.get("/admin/api/config").status_code == 200
+
+
+def test_go2rtc_ws_requires_password(cfg_path):
+    with TestClient(app, client=LOCAL) as c:
+        assert _closed(c, "/admin/go2rtc/api/ws?src=garage") == 1008
 
 
 def test_put_round_trip_reloads_without_restart(client, cfg_path, events):
@@ -61,7 +95,7 @@ def test_put_round_trip_reloads_without_restart(client, cfg_path, events):
     r = put(client, cfg, doc["version"])
     assert r.status_code == 200
     assert app.state.config["alerts"]["panic"]["text"] == "Help"
-    assert json.loads(cfg_path.read_text())["cameras"]["garage"] == URL  # null kept the URL
+    assert json.loads(cfg_path.read_text())["cameras"]["garage"] == URL
     assert load(client)["version"] == r.json()["version"]
     ev = [e for e in events() if e["event"] == "config-changed"][0]
     assert ev["alerts_changed"] == ["panic"] and URL not in json.dumps(ev)
@@ -103,6 +137,13 @@ def test_missing_csrf_header_forbidden(client):
     assert r.status_code == 403
 
 
+def test_null_keeps_existing_camera_url(client, cfg_path):
+    doc = load(client)
+    doc["config"]["cameras"]["garage"] = None
+    assert put(client, doc["config"], doc["version"]).status_code == 200
+    assert json.loads(cfg_path.read_text())["cameras"]["garage"] == URL
+
+
 def test_null_for_new_camera_refused(client):
     doc = load(client)
     cfg = copy.deepcopy(doc["config"])
@@ -133,7 +174,7 @@ def test_admin_unknown_asset_404(client):
 
 
 def test_admin_page_forbidden_outside_network(cfg_path):
-    with TestClient(app, client=("198.51.100.30", 1)) as c:
+    with TestClient(app, client=("198.51.100.30", 1), headers=AUTH) as c:
         assert c.get("/admin").status_code == 403
         assert c.get("/admin/web/admin.js").status_code == 403
 
@@ -148,7 +189,7 @@ def test_preview_page_uses_admin_assets(client):
 
 
 def test_preview_forbidden_outside_network(cfg_path):
-    with TestClient(app, client=("198.51.100.30", 1)) as c:
+    with TestClient(app, client=("198.51.100.30", 1), headers=AUTH) as c:
         assert c.get("/admin/preview").status_code == 403
         assert c.get("/admin/go2rtc/video-stream.js").status_code == 403
 
@@ -171,7 +212,7 @@ def test_go2rtc_ws_rejects_unknown_camera(client):
 
 
 def test_go2rtc_ws_forbidden_outside_network(cfg_path):
-    with TestClient(app, client=("198.51.100.30", 1)) as c:
+    with TestClient(app, client=("198.51.100.30", 1), headers=AUTH) as c:
         assert _closed(c, "/admin/go2rtc/api/ws?src=garage") == 1008
 
 
@@ -240,5 +281,5 @@ def test_events_paging_same_second(client, cfg_path, tmp_path):
 
 
 def test_events_forbidden_outside_network(cfg_path):
-    with TestClient(app, client=("198.51.100.30", 1)) as c:
+    with TestClient(app, client=("198.51.100.30", 1), headers=AUTH) as c:
         assert c.get("/admin/api/events").status_code == 403

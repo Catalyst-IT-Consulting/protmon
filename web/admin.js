@@ -1,7 +1,7 @@
 "use strict";
 const ANIMATIONS = ["none", "flash", "flash-alt", "invert"];
 const $ = (id) => document.getElementById(id);
-let version, alerts, cameras, protect, video;
+let version, alerts, cameras, protect, video, secrets;
 
 function el(tag, props, ...kids) {
   const e = Object.assign(document.createElement(tag), props);
@@ -97,7 +97,7 @@ function renderAlerts() {
   $("alerts").replaceChildren(...alerts.map((a) => {
     const webhook = () => location.origin + "/alert/" + a.key;
     const url = copyBox("Webhook URL (POST or GET)", webhook());
-    const hdr = copyBox("Header", "X-Protmon-Token: <token from secrets.env>");
+    const hdr = copyBox("Header", "X-Protmon-Token: " + secrets.token);
     const warn = el("div", { className: "warn" });
     const keyIn = input(a, "key", { required: true, pattern: "[A-Za-z0-9_\\-]+", className: "short" });
     keyIn.oninput = () => {
@@ -143,7 +143,7 @@ function renderCameras() {
       ? el("input", { value: c.name, readOnly: true, className: "short" })
       : input(c, "name", { required: true, pattern: "\\S+", className: "short", onchange: renderAlerts });
     const url = input(c, "url", {
-      type: "password", autocomplete: "off", required: !c.existing, placeholder: c.existing ? "unchanged" : "rtsp://",
+      autocomplete: "off", required: true, placeholder: "rtsp://",
     });
     return el("div", { className: "card row" }, field("Name", name), field("RTSP URL", url, "grow"), del);
   }));
@@ -161,6 +161,10 @@ function renderSettings() {
   }
   rows.push(el("div", { className: "row" },
     field("Max simultaneous video streams", input(video, "max_streams", { type: "number", min: 1, step: 1 }))));
+  const ro = (label, list) => field(label, el("input", { readOnly: true, value: list.join(", ") }), "grow");
+  rows.push(el("div", { className: "row" },
+    ro("Allowed webhook source IPs (PROTMON_ALLOWED_IPS)", secrets.allowed_ips),
+    ro("Admin networks (PROTMON_ADMIN_NETWORKS)", secrets.admin_networks)));
   $("settings").replaceChildren(el("div", { className: "card" }, ...rows));
 }
 
@@ -175,7 +179,8 @@ async function load(msg) {
   if (status !== 200) return setStatus(doc.detail || `Load failed (${status})`, "err");
   const cfg = doc.config;
   version = doc.version;
-  cameras = Object.keys(cfg.cameras || {}).map((name) => ({ name, existing: true, url: "" }));
+  secrets = doc.secrets;
+  cameras = Object.entries(cfg.cameras || {}).map(([name, url]) => ({ name, existing: true, url }));
   alerts = Object.entries(cfg.alerts || {})
     .map(([key, a]) => ({
       key, orig: key, text: a.text, priority: String(a.priority), duration: String(a.duration), camera: a.camera || "",
@@ -197,8 +202,8 @@ function build() {
   for (const c of cameras) {
     if (!c.name) throw new Error("Every camera needs a name.");
     if (c.name in cfg.cameras) throw new Error(`Duplicate camera name: ${c.name}`);
-    if (!c.existing && !c.url) throw new Error(`Camera ${c.name} needs an RTSP URL.`);
-    cfg.cameras[c.name] = c.url || null;
+    if (!c.url) throw new Error(`Camera ${c.name} needs an RTSP URL.`);
+    cfg.cameras[c.name] = c.url;
   }
   for (const a of alerts) {
     if (a.key in cfg.alerts) throw new Error(`Duplicate alert key: ${a.key}`);

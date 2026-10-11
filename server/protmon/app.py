@@ -75,6 +75,7 @@ async def lifespan(app):
     app.state.config = config.load(app.state.config_path)  # ConfigError stops startup
     app.state.token, app.state.allowed_ips = config.load_secrets(os.environ)
     app.state.admin_networks = config.load_admin_networks(os.environ)
+    app.state.admin_password = config.load_admin_password(os.environ)
     app.state.log = log = EventLog()
     app.state.alerts = State(log, path=os.environ.get("PROTMON_STATE", "/var/lib/protmon/active.json"))
     app.state.watchers = set()

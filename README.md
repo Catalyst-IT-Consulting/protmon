@@ -83,12 +83,15 @@ is the worst thing the system can do. Three rules follow from that:
   logged, not just dropped.
 - **Only the webhook and the admin API are on the LAN.** `/healthz`,
   `/api/state` and `/ws` answer localhost only. `/admin` answers localhost and
-  the networks listed in `PROTMON_ADMIN_NETWORKS`; anyone else gets `403`. There
-  is no admin login, so that allowlist is the only gate: list only networks you
-  trust, and keep the port off the internet. The admin connection is plain HTTP.
+  the networks listed in `PROTMON_ADMIN_NETWORKS`; anyone else gets `403`. It
+  also asks for the shared password `PROTMON_ADMIN_PASSWORD` (HTTP Basic, any
+  username); without one set, admin access is refused. List only networks you
+  trust, and keep the port off the internet. The admin connection is plain HTTP,
+  so the password crosses the LAN unencrypted.
   Every state-changing admin request must carry the header `X-Protmon-Admin: 1`
-  and a JSON content type, which a page on another site cannot send. Camera
-  credentials and the webhook token are never returned by the admin API.
+  and a JSON content type, which a page on another site cannot send. The admin
+  page shows camera URLs and the webhook token in full, so the network
+  allowlist and the password are what protect them.
 - **RTSP credentials stay on the Pi.** The browser only ever receives a go2rtc
   stream name. The server generates go2rtc's stream config from the `cameras`
   section of the config file, so credentials never reach the page.
@@ -102,7 +105,7 @@ is the worst thing the system can do. Three rules follow from that:
 - Internet exposure or remote access.
 - Replacing Protect's own notifications and recording. This is an additional,
   in-room display.
-- Admin login. The admin network allowlist is the only gate.
+- Per-user admin accounts or roles. Admin uses one shared password.
 - Camera recording or playback history.
 
 ## Stack
@@ -338,10 +341,19 @@ refuses to start without both:
 ```
 PROTMON_TOKEN=a-long-random-string
 PROTMON_ALLOWED_IPS=192.168.1.10
+PROTMON_ADMIN_PASSWORD=another-long-random-string
 ```
 
 `PROTMON_ALLOWED_IPS` is a comma-separated list of the Protect console's
 addresses.
+
+`PROTMON_ADMIN_PASSWORD` is the shared password for `/admin` (HTTP Basic, the
+username is ignored). It applies to every client, localhost included. If it is
+unset or empty the server still starts, but every admin route answers `403` and
+logs `rejected-admin` with the reason. A wrong or missing password answers
+`401` and logs `rejected-admin` with the source IP. The connection is plain
+HTTP, so the password is not encrypted on the LAN. Changing it needs a service
+restart.
 
 `PROTMON_ADMIN_NETWORKS` is optional: a comma-separated list of CIDR networks or
 single IPs (for example `192.168.1.0/24`) allowed to use `/admin` in addition to
@@ -364,14 +376,15 @@ the allowlist gives `403`, and an unknown `<key>` shows an "Unmapped alert".
 ### Admin page
 
 Open `http://<pi>:8080/admin` from localhost or a network listed in
-`PROTMON_ADMIN_NETWORKS`. It edits the whole config in one form: alerts (key,
+`PROTMON_ADMIN_NETWORKS`, and sign in with `PROTMON_ADMIN_PASSWORD`. It edits the whole config in one form: alerts (key,
 text, priority, duration, camera, text style), cameras, the Protect reachability
 check and the video stream cap. Alerts are listed in wall order, and each shows
 its webhook URL and header with copy buttons. Renaming a key changes its URL, so
-update the matching Alarm Manager rule. Camera RTSP URLs are write-only: they are
-never shown, and an empty field keeps the stored URL. A camera that an alert
-uses cannot be deleted. The webhook token is never shown; the page displays a
-placeholder for it. Save validates and applies the config without a restart.
+update the matching Alarm Manager rule. Camera RTSP URLs are shown in full and
+are editable. A camera that an alert uses cannot be deleted. The header box
+holds the real webhook token, ready to paste into an Alarm Manager rule, and
+the allowed source IPs and admin networks are listed read-only under Settings.
+The admin password is never shown. Save validates and applies the config without a restart.
 
 The Preview section embeds the real wall page and shows the alerts ticked
 "Preview", including unsaved edits, with live camera video proxied through the
