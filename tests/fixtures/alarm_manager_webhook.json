@@ -1,0 +1,28 @@
+{
+  "method": "POST",
+  "path": "/alert/protmon-test?token=REDACTED",
+  "source_ip": "198.51.100.30",
+  "headers": [
+    [
+      "x-protmon-token",
+      "REDACTED"
+    ],
+    [
+      "content-type",
+      "application/json"
+    ],
+    [
+      "accept",
+      "*/*"
+    ],
+    [
+      "host",
+      "192.0.2.10:8080"
+    ],
+    [
+      "content-length",
+      "354"
+    ]
+  ],
+  "body": "{\"alarm\":{\"name\":\"Example Alarm\",\"sources\":[],\"conditions\":[{\"condition\":{\"type\":\"is\",\"source\":\"webhook\",\"value\":\"example-webhook-id\"}}],\"triggers\":[{\"key\":\"webhook\",\"value\":\"example-webhook-id\",\"device\":\"externalApi\",\"eventId\":\"externalApiEventId\",\"timestamp\":1700000000000}]},\"timestamp\":1700000000120,\"alarm_id\":\"00000000-0000-0000-0000-000000000000\"}"
+}
