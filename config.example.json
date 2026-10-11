@@ -14,13 +14,13 @@
       "text": "Entrance Panic Button",
       "priority": 1,
       "camera": "entrance",
-      "duration": null
+      "duration": 1800
     },
     "panic-button": {
       "text": "Panic Button",
       "priority": 1,
       "camera": null,
-      "duration": null
+      "duration": 1800
     }
   }
 }

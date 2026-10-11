@@ -3,10 +3,10 @@ import json
 import pytest
 
 from protmon.eventlog import EventLog
-from protmon.state import State
+from protmon.state import SYSTEM_DURATION, State
 
 TIMED = {"text": "Motion", "priority": 3, "camera": "garage", "duration": 30}
-STICKY = {"text": "Panic", "priority": 1, "camera": None, "duration": None}
+LONG = {"text": "Panic", "priority": 1, "camera": None, "duration": 1800}
 
 
 class Clock:
@@ -62,27 +62,30 @@ def test_timed_expiry(env):
     assert events()[-1]["event"] == "expired" and events()[-1]["key"] == "m"
 
 
-def test_sticky_survives_any_timer(env):
+def test_priority1_expires_and_retrigger_restarts(env):
     st, clock, events = env
-    st.trigger("p", STICKY, "10.0.0.5")
-    clock.t = 10**7
+    st.trigger("p", LONG, "10.0.0.5")
+    clock.t = 1000
+    st.trigger("p", LONG, "10.0.0.5")
+    clock.t = 2799
     assert st.expire_due() == []
-    (a,) = st.snapshot()
-    assert a["expires_at"] is None
-    assert [e["event"] for e in events()] == ["received"]
+    clock.t = 2800
+    assert st.expire_due() == ["p"]
 
 
-def test_unmapped_is_sticky_and_sorts_first(env):
+def test_unmapped_sorts_first_and_expires_after_system_duration(env):
     st, clock, events = env
     st.trigger("m", TIMED, "10.0.0.5")
     st.trigger("mystery", None, "10.0.0.9")
     snap = st.snapshot()
     assert [a["key"] for a in snap] == ["mystery", "m"]
     assert snap[0]["text"] == "Unmapped alert: mystery" and snap[0]["priority"] == 1
-    assert snap[0]["expires_at"] is None
-    clock.t = 10**6
+    assert snap[0]["expires_at"] is not None
+    clock.t = SYSTEM_DURATION - 1
     st.expire_due()
     assert [a["key"] for a in st.snapshot()] == ["mystery"]
+    clock.t = SYSTEM_DURATION
+    assert st.expire_due() == ["mystery"]
     assert events()[1]["key"] == "mystery" and events()[1]["priority"] == 1
 
 
@@ -100,15 +103,15 @@ def mk(env, tmp_path):
     return (lambda: State(EventLog(), mono=lambda: clock.t, wall=clock, path=path)), clock, events, path
 
 
-def test_sticky_survives_restart(mk):
+def test_long_alert_survives_restart(mk):
     new, clock, _, path = mk
     a = new()
-    a.trigger("p", STICKY, "10.0.0.5")
-    clock.t += 3600
+    a.trigger("p", LONG, "10.0.0.5")
+    clock.t += 600
     b = new()
     b.restore()
     (r,) = b.snapshot()
-    assert (r["key"], r["expires_at"]) == ("p", None)
+    assert r["key"] == "p" and r["expires_at"] is not None
     assert b.expire_due() == []
 
 
@@ -135,7 +138,7 @@ def test_corrupt_file_raises_system_alert(mk):
     b = new()
     b.restore()
     (r,) = b.snapshot()
-    assert r["key"] == "system-state-lost" and r["priority"] == 1 and r["expires_at"] is None
+    assert r["key"] == "system-state-lost" and r["priority"] == 1 and r["expires_at"] is not None
     assert any(e["event"] == "state-restore-failed" for e in events())
     assert open(path + ".corrupt").read() == "{not json"
     c = new()
@@ -152,8 +155,8 @@ def test_missing_file_is_clean_start(mk):
 def test_save_is_atomic_and_failure_does_not_raise(mk, tmp_path):
     new, _, events, path = mk
     a = new()
-    a.trigger("p", STICKY, "10.0.0.5")
+    a.trigger("p", LONG, "10.0.0.5")
     assert sorted(p.name for p in tmp_path.iterdir() if p.name.startswith("active")) == ["active.json"]
     a.path = str(tmp_path / "nodir" / "active.json")
-    a.trigger("q", STICKY, "10.0.0.5")
+    a.trigger("q", LONG, "10.0.0.5")
     assert any(e["event"] == "state-save-failed" for e in events())

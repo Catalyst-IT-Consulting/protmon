@@ -44,10 +44,8 @@ def _alert(key, a, cameras):
     if cam is not None and (not isinstance(cam, str) or cam not in cameras):
         raise ConfigError(f"alert {key!r}: unknown camera {cam!r}")
     dur = a.get("duration")
-    if dur is not None and (not _is_int(dur) or dur <= 0):
-        raise ConfigError(f"alert {key!r}: duration must be null or a positive integer, got {dur!r}")
-    if pri == 1 and dur is not None:
-        raise ConfigError(f"alert {key!r}: priority 1 must have duration null")
+    if not _is_int(dur) or dur <= 0:
+        raise ConfigError(f"alert {key!r}: duration must be a positive integer, got {dur!r}")
     return {"text": text, "priority": pri, "camera": cam, "duration": dur}
 
 

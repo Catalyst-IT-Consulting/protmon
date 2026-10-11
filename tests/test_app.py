@@ -55,7 +55,7 @@ def test_process_exits_nonzero_on_bad_config(cfg_path):
 def test_reload_success_and_failure_keep_old(cfg_path, events):
     with TestClient(app, client=LOCAL):
         new = json.loads(cfg_path.read_text())
-        new["alerts"]["extra"] = {"text": "Extra", "priority": 2}
+        new["alerts"]["extra"] = {"text": "Extra", "priority": 2, "duration": 60}
         cfg_path.write_text(json.dumps(new))
         assert appmod.reload_config(app) is True
         assert "extra" in app.state.config["alerts"]
@@ -72,7 +72,7 @@ def test_sighup_reloads(cfg_path, events):
     async def scenario():
         async with app.router.lifespan_context(app):
             new = json.loads(cfg_path.read_text())
-            new["alerts"]["extra"] = {"text": "Extra", "priority": 2}
+            new["alerts"]["extra"] = {"text": "Extra", "priority": 2, "duration": 60}
             cfg_path.write_text(json.dumps(new))
             os.kill(os.getpid(), signal.SIGHUP)
             for _ in range(50):
@@ -96,7 +96,7 @@ def test_missing_secret_fails_startup(cfg_path, monkeypatch, var):
     assert r.returncode != 0 and var in r.stderr
 
 
-def test_sticky_alert_restored_after_restart(cfg_path, events):
+def test_alert_restored_after_restart(cfg_path, events):
     with TestClient(app, client=LOCAL) as client:
         app.state.alerts.trigger("panic", app.state.config["alerts"]["panic"], "127.0.0.1")
     with TestClient(app, client=LOCAL) as client:

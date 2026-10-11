@@ -6,6 +6,7 @@ from datetime import datetime
 
 
 LOST_KEY = "system-state-lost"
+SYSTEM_DURATION = 1800
 FIELDS = ("key", "text", "priority", "camera", "first_seen", "last_seen", "expires_wall", "unmapped")
 
 
@@ -25,7 +26,7 @@ class State:
         """Create or refresh an alert. entry is a config alert dict, or None if unmapped."""
         unmapped = entry is None
         if entry is None:
-            entry = {"text": f"Unmapped alert: {key}", "priority": 1, "camera": None, "duration": None}
+            entry = {"text": f"Unmapped alert: {key}", "priority": 1, "camera": None, "duration": SYSTEM_DURATION}
         now, wall = self.mono(), self.wall()
         dur = entry["duration"]
         a = self.alerts.get(key)
@@ -85,7 +86,7 @@ class State:
             except OSError:
                 pass
             self.trigger(LOST_KEY, {"text": "Alert state lost on restart: check active alerts in Protect",
-                                    "priority": 1, "camera": None, "duration": None}, "local")
+                                    "priority": 1, "camera": None, "duration": SYSTEM_DURATION}, "local")
             return
         now, wall = self.mono(), self.wall()
         for r in rows:

@@ -61,7 +61,7 @@ clobbered by a push, and the repo stays safe to make public or share.
 Everything under `deploy/system/` is installed to the matching path under `/`.
 `deploy/system/etc/systemd/system/protmon-deploy.timer` lands at
 `/etc/systemd/system/protmon-deploy.timer`. Adding a logrotate rule, a udev
-rule for the acknowledge keypad, a sysctl drop-in, or a new unit means adding
+rule, a sysctl drop-in, or a new unit means adding
 the file here and pushing.
 
 Two details worth knowing:
@@ -88,8 +88,8 @@ running tree has not moved and the display never noticed.
 **Deploys wait for a quiet screen.** Before applying, the deployer asks the
 server how many alerts are active. If any are, it defers and tries again next
 cycle. Nothing restarts under an operator who is mid-response. A deploy that has
-been waiting past `DEFER_WARN_AFTER` (default 30 minutes, which means a sticky
-alert nobody acknowledged) logs a louder event. If the server is unreachable the
+been waiting past `DEFER_WARN_AFTER` (default 30 minutes, about the longest an alert
+normally stays up) logs a louder event. If the server is unreachable the
 count is zero, because then there is nothing to interrupt and the update may be
 the fix.
 

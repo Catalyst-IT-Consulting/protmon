@@ -30,6 +30,18 @@ def test_good_config(tmp_path):
                                               "camera": "garage", "duration": 30}
 
 
+def test_missing_duration_rejected(tmp_path):
+    c = copy.deepcopy(GOOD)
+    del c["alerts"]["garage-motion"]["duration"]
+    with pytest.raises(ConfigError, match="duration must be a positive integer"):
+        load(write(tmp_path, c))
+
+
+def test_priority1_with_duration_accepted(tmp_path):
+    cfg = load(write(tmp_path, mutated(priority=1, duration=1800)))
+    assert cfg["alerts"]["garage-motion"]["duration"] == 1800
+
+
 def test_example_config_loads():
     cfg = load(ROOT / "config.example.json")
     assert cfg["alerts"]["panic-button"]["camera"] is None
@@ -59,7 +71,7 @@ def test_duplicate_keys(tmp_path, text, msg):
     (mutated(duration=1.5), "duration"),
     (mutated(duration="30"), "duration"),
     (mutated(duration=True), "duration"),
-    (mutated(priority=1, duration=30), "priority 1 must have duration null"),
+    (mutated(duration=None), "duration must be a positive integer"),
     (mutated(duraton=5), "unknown field.*duraton"),
     ({**GOOD, "extra": {}}, "top level"),
     ({"cameras": {"g": ""}, "alerts": {}}, "camera 'g'"),

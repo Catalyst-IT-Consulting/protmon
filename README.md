@@ -22,7 +22,7 @@ exists yet. Two things gate the first line of application code:
 1. The open issues labeled `discovery`, mainly whether Protect's Alarm Manager
    posts its webhook from the Cloud Key on the LAN or routes it through
    Ubiquiti's cloud. The whole design assumes LAN only.
-2. The open issues labeled `decision`, starting with the acknowledge mechanism.
+2. The open issues labeled `decision`.
 
 Start with the discovery listener (step 1 of the build order below). It is
 throwaway code that answers questions the rest of the system rests on.
@@ -68,8 +68,9 @@ is the worst thing the system can do. Three rules follow from that:
   server connection prominently, and an external heartbeat catches a Pi that has
   stopped checking in entirely.
 - **Nothing is dropped silently.** Unmapped paths show an "Unmapped alert"
-  banner and get logged. Rejected auth gets logged. Sticky alerts survive a
-  reboot via persisted state. A priority-1 alert never disappears on its own.
+  banner and get logged. Rejected auth gets logged. Active alerts survive a
+  reboot via persisted state. A priority-1 alert stays up for its full
+  configured duration, and a repeat trigger restarts it.
 
 ## Security posture
 
@@ -123,7 +124,7 @@ GitHub-hosted runner cannot reach the LAN. The Pi makes one outbound
 
 Pi-specific config lives in the repo under `deploy/system/`, which is installed
 to the matching path under `/`. Adding a systemd unit, a logrotate rule, or a
-udev rule for the acknowledge keypad is a file and a push. Files that leave the
+sysctl drop-in is a file and a push. Files that leave the
 overlay are removed from the Pi, so a deleted unit does not linger.
 
 What a deploy will not do: touch `/etc/protmon/config.json`, restart
@@ -169,16 +170,16 @@ edit; `config.json` is gitignored because it holds camera credentials.
 | `text` | What the banner says. Written for someone reading it across the room |
 | `priority` | `1`, `2` or `3`; lower is more urgent. See the tiers below |
 | `camera` | A key into `cameras`, or `null` for text-only (a room with no camera) |
-| `duration` | Seconds until auto-expiry, or `null` for sticky until acknowledged |
+| `duration` | Seconds until the alert expires. Required; a repeat trigger restarts it |
 
 | Tier | Class | Default lifetime | Flash | Sound |
 | --- | --- | --- | --- | --- |
-| 1 | Silent alarm, life-safety | Sticky until acknowledged | Hardest | Yes, if audio is adopted |
-| 2 | Doors, perimeter | Sticky or long | Moderate | No |
-| 3 | Motion, informational | Short auto-expiry | Gentle | No |
+| 1 | Silent alarm, life-safety | Long (e.g. 30 minutes) | Hardest | Yes, if audio is adopted |
+| 2 | Doors, perimeter | Medium | Moderate | No |
+| 3 | Motion, informational | Short | Gentle | No |
 
-A tier-1 alert must be sticky: config validation rejects a tier-1 alert with a
-non-null `duration`.
+Every alert needs a `duration`. There is no acknowledge step, so nothing stays up
+indefinitely. Unmapped alerts show for 30 minutes.
 
 Alerts reference cameras **by name**, which is what makes the eventual move to
 UniFi cameras a URL change under `cameras` and nothing more. Use each camera's
@@ -216,7 +217,7 @@ the build order below proceeds. The build order, tracked as milestones, is:
 1. Discovery listener that logs full webhook requests
 2. Core server: config, webhook auth, active-alert state, event log, WebSocket
 3. Text-only page, tested fully before any video is added
-4. Acknowledge flow and persistence across restart
+4. Persistence across restart
 5. go2rtc integration, tile layout, stream cap, text-only fallback
 6. Hardening: systemd, kiosk, heartbeat, firewall, rebuild docs
 
@@ -230,7 +231,7 @@ useful on its own, and video is the part most likely to misbehave.
 
 Every acceptance test (see the go-live milestone) runs with `curl` against the
 webhook endpoint. No real sensors are needed to exercise the full lifecycle:
-mapped and unmapped paths, bad tokens, duplicate triggers, expiry, sticky alerts
+mapped and unmapped paths, bad tokens, duplicate triggers, expiry, active alerts
 across a reboot, multiple simultaneous alerts, and a killed server.
 
 ## Hardware
