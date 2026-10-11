@@ -1,4 +1,5 @@
 """Config loader and validator. Stdlib only: preflight runs it under system python3."""
+import ipaddress
 import json
 import re
 import sys
@@ -79,6 +80,20 @@ def load(path):
         return validate(raw)
     except ConfigError as e:
         raise ConfigError(f"{path}: {e}") from e
+
+
+def load_secrets(env):
+    """Return (token, allowed_ips) from PROTMON_TOKEN and PROTMON_ALLOWED_IPS."""
+    token = env.get("PROTMON_TOKEN", "").strip()
+    if not token:
+        raise ConfigError("PROTMON_TOKEN is not set (see secrets.env)")
+    raw = [p.strip() for p in env.get("PROTMON_ALLOWED_IPS", "").split(",") if p.strip()]
+    if not raw:
+        raise ConfigError("PROTMON_ALLOWED_IPS is not set (comma-separated IPs, see secrets.env)")
+    try:
+        return token, {ipaddress.ip_address(p) for p in raw}
+    except ValueError as e:
+        raise ConfigError(f"PROTMON_ALLOWED_IPS: {e}") from e
 
 
 if __name__ == "__main__":

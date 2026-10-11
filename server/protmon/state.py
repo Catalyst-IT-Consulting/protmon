@@ -12,21 +12,25 @@ class State:
     def __init__(self, log, mono=time.monotonic, wall=time.time):
         self.log, self.mono, self.wall = log, mono, wall
         self.alerts = {}
+        self.on_change = lambda: None
 
-    def trigger(self, key, entry, source_ip):
+    def trigger(self, key, entry, source_ip, body=None):
         """Create or refresh an alert. entry is a config alert dict, or None if unmapped."""
+        unmapped = entry is None
         if entry is None:
             entry = {"text": f"Unmapped alert: {key}", "priority": 1, "camera": None, "duration": None}
         now, wall = self.mono(), self.wall()
         dur = entry["duration"]
         a = self.alerts.get(key)
-        event = "refreshed" if a else "received"
+        event = "refreshed" if a else "unmapped" if unmapped else "received"
         if not a:
             a = self.alerts[key] = {"key": key, "first_seen": wall}
         a.update(text=entry["text"], priority=entry["priority"], camera=entry["camera"],
                  last_seen=wall, deadline=None if dur is None else now + dur,
                  expires_wall=None if dur is None else wall + dur)
-        self.log.write(event, key, priority=a["priority"], source_ip=source_ip)
+        extra = {} if body is None else {"body": body}
+        self.log.write(event, key, priority=a["priority"], source_ip=source_ip, **extra)
+        self.on_change()
         return event
 
     def expire_due(self):
@@ -35,6 +39,8 @@ class State:
         for k in due:
             a = self.alerts.pop(k)
             self.log.write("expired", k, priority=a["priority"])
+        if due:
+            self.on_change()
         return due
 
     def snapshot(self):

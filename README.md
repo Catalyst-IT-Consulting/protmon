@@ -76,9 +76,12 @@ is the worst thing the system can do. Three rules follow from that:
 - **LAN only, permanently.** The webhook listener must be reachable by the Cloud
   Key and nothing else. Never port-forward it, never expose it through a tunnel.
   A spoofed webhook can raise a false alarm or bury a real one.
-- **Two checks on every webhook:** a shared secret token in the URL and an
-  allowlist of the Cloud Key's source IP. Rejections are logged, not just
-  dropped.
+- **Two checks on every webhook:** a shared secret token in the
+  `X-Protmon-Token` header (never the URL, which Protect logs on a failed
+  delivery) and an allowlist of the Cloud Key's source IP. Rejections are
+  logged, not just dropped.
+- **Only the webhook is on the LAN.** `/healthz`, `/api/state` and `/ws` answer
+  localhost only.
 - **RTSP credentials stay on the Pi.** The browser only ever receives a go2rtc
   stream name. The server generates go2rtc's stream config from the `cameras`
   section of the config file, so credentials never reach the page.
@@ -239,3 +242,54 @@ set the ceiling on simultaneous video tiles.
 
 Keep SD card writes modest. Log rotation is already in place via the overlay.
 NTP must be working, because the event log is the record you will go back to.
+
+## Webhook
+
+`POST` (or `GET`) `http://<pi>:8080/alert/<key>` with the header
+`X-Protmon-Token: <token>`. `<key>` is a key under `alerts` in the config
+(letters, digits, `_` and `-`). A valid request gets `204` immediately and the
+alert is raised after the response. A wrong or missing token or a source IP
+outside the allowlist gets an empty `403` and a `rejected-auth` log line. A
+valid request for a key that is not in the config raises an "Unmapped alert"
+banner and logs `unmapped`. The request body is logged (first 2 KB) and never
+parsed.
+
+The secrets live in `/etc/protmon/secrets.env`, not in the repo, and the server
+refuses to start without both:
+
+```
+PROTMON_TOKEN=a-long-random-string
+PROTMON_ALLOWED_IPS=192.168.1.10
+```
+
+`PROTMON_ALLOWED_IPS` is a comma-separated list of the Protect console's
+addresses.
+
+### Protect rule setup
+
+In Alarm Manager, create a rule for the sensor, choose the HTTP request action,
+and set:
+
+- Method: `POST`
+- URL: `http://<pi>:8080/alert/<key>`
+- Header: `X-Protmon-Token` with the token from `secrets.env`
+
+Check it from the LAN with `curl -X POST -H "X-Protmon-Token: $TOKEN"
+http://<pi>:8080/alert/<key>` (expect `204`); a wrong token or an address outside
+the allowlist gives `403`, and an unknown `<key>` shows an "Unmapped alert".
+
+## State feed
+
+Localhost only. `GET /api/state` returns
+`{"alerts": [...], "commit": "<sha>", "server_time": "<ISO-8601>"}`, alerts
+sorted by priority then first seen. Each alert carries `key`, `text`,
+`priority`, `camera` (the stream name, never a URL), `first_seen`, `last_seen`
+and `expires_at`.
+
+`/ws` is a WebSocket that sends `{"type": "state", "alerts": [...], "commit":
+..., "server_time": ...}` on connect and after every change (always the full
+state, so a reconnect is a resync), plus `{"type": "ping"}` every 15 seconds so
+the page can tell a dead socket from a quiet one.
+
+`GET /healthz` returns `{"status": "ok", "commit": "<sha>"}` once the config
+and secrets are loaded and the server is accepting requests.

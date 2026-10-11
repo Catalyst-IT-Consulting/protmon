@@ -47,7 +47,7 @@ Nothing operational is mixed in with the code the deployer overwrites.
 | --- | --- | --- |
 | `/opt/protmon` | git | the repo, reset hard on every deploy |
 | `/etc/protmon/config.json` | you, by hand | cameras and alerts, holds RTSP credentials |
-| `/etc/protmon/secrets.env` | you, by hand | the webhook token |
+| `/etc/protmon/secrets.env` | you, by hand | the webhook token and allowed source IPs |
 | `/etc/protmon/deploy.env` | you, by hand | this host's deploy settings |
 | `/etc/protmon/HOLD` | you, by hand | exists means deploys are paused |
 | `/var/lib/protmon` | the app and deployer | active alerts, deployed commit, manifests |
@@ -120,7 +120,7 @@ when the server gets built, or the safety interlocks degrade to nothing.
 | What | Why |
 | --- | --- |
 | `GET /healthz` on localhost, 200 once config is loaded and the webhook endpoint is live | the rollback trigger. Should also report the running commit |
-| `GET /api/state` returning `{"alerts": [...]}` | the live-alert gate. The page consumes this too |
+| `GET /api/state` returning `{"alerts": [...], "commit": ..., "server_time": ...}` | the live-alert gate. The page consumes this too |
 | config read from `/etc/protmon/config.json` | keeps credentials out of the deployed tree |
 | state in `/var/lib/protmon`, logs in `/var/log/protmon/*.jsonl` | survives `git reset --hard`, and logrotate already covers that glob |
 | `deploy/postfetch.sh`, if dependencies need installing | run after fetch, before restart. Non-zero fails the deploy and triggers rollback. It maintains the virtualenv at `/var/lib/protmon/venv`, reinstalling only when `requirements.txt` changes |

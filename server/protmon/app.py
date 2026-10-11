@@ -1,12 +1,16 @@
 import asyncio
+import hmac
+import ipaddress
 import os
 import signal
 import subprocess
 import sys
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response, WebSocket, WebSocketException
+from starlette.requests import HTTPConnection
 
 from . import config
 from .eventlog import EventLog
@@ -28,6 +32,9 @@ def _commit() -> str:
 
 
 COMMIT = _commit()
+LOCAL = {"127.0.0.1", "::1"}
+BODY_LOG_MAX = 2048
+PING_SECONDS = 15
 
 
 def reload_config(app) -> bool:
@@ -52,8 +59,11 @@ async def _sweep(state):
 async def lifespan(app):
     app.state.config_path = os.environ.get("PROTMON_CONFIG", CONFIG_PATH)
     app.state.config = config.load(app.state.config_path)  # ConfigError stops startup
+    app.state.token, app.state.allowed_ips = config.load_secrets(os.environ)
     app.state.log = log = EventLog()
     app.state.alerts = State(log)
+    app.state.watchers = set()
+    app.state.alerts.on_change = lambda: [ev.set() for ev in app.state.watchers]
     cfg = app.state.config
     log.write("startup", commit=COMMIT, alerts=len(cfg["alerts"]), cameras=len(cfg["cameras"]))
     loop = asyncio.get_running_loop()
@@ -73,11 +83,72 @@ async def lifespan(app):
 app = FastAPI(title="Protmon", lifespan=lifespan)
 
 
-@app.get("/healthz")
+def local_only(conn: HTTPConnection):
+    if not conn.client or conn.client.host not in LOCAL:
+        if conn.scope["type"] == "websocket":
+            raise WebSocketException(code=1008)
+        raise HTTPException(404)
+
+
+def _state_doc():
+    return {"alerts": app.state.alerts.snapshot(), "commit": COMMIT,
+            "server_time": datetime.now().astimezone().isoformat(timespec="seconds")}
+
+
+@app.get("/healthz", dependencies=[Depends(local_only)])
 def healthz():
     return {"status": "ok", "commit": COMMIT}
 
 
-@app.get("/api/state")
+@app.get("/api/state", dependencies=[Depends(local_only)])
 def state():
-    return {"alerts": app.state.alerts.snapshot()}
+    return _state_doc()
+
+
+@app.websocket("/ws", dependencies=[Depends(local_only)])
+async def ws(ws: WebSocket):
+    await ws.accept()
+    changed = asyncio.Event()
+    app.state.watchers.add(changed)
+    try:
+        await ws.send_json({"type": "state", **_state_doc()})
+        while True:
+            try:
+                await asyncio.wait_for(changed.wait(), PING_SECONDS)
+            except asyncio.TimeoutError:
+                await ws.send_json({"type": "ping"})
+                continue
+            changed.clear()
+            await ws.send_json({"type": "state", **_state_doc()})
+    except Exception:  # client went away
+        pass
+    finally:
+        app.state.watchers.discard(changed)
+
+
+def _authorized(request: Request) -> bool:
+    try:
+        ip_ok = ipaddress.ip_address(request.client.host) in request.app.state.allowed_ips
+    except (AttributeError, ValueError):
+        ip_ok = False
+    sent = request.headers.get("x-protmon-token", "").encode()
+    token_ok = hmac.compare_digest(sent, request.app.state.token.encode())
+    return ip_ok and token_ok
+
+
+async def _fire(key, source_ip, body):
+    st = app.state
+    st.alerts.trigger(key, st.config["alerts"].get(key), source_ip, body)
+
+
+@app.api_route("/alert/{key}", methods=["GET", "POST"], status_code=204)
+async def alert(key: str, request: Request, background: BackgroundTasks):
+    ip = request.client.host if request.client else None
+    if not _authorized(request):
+        request.app.state.log.write("rejected-auth", source_ip=ip, path=request.url.path)
+        return Response(status_code=403)
+    if not config.KEY_RE.fullmatch(key):
+        raise HTTPException(404)
+    body = (await request.body())[:BODY_LOG_MAX].decode(errors="replace")
+    background.add_task(_fire, key, ip, body)
+    return Response(status_code=204)
