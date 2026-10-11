@@ -94,3 +94,11 @@ def test_missing_secret_fails_startup(cfg_path, monkeypatch, var):
     r = subprocess.run([sys.executable, "-m", "protmon"], cwd=SERVER, capture_output=True, text=True,
                        timeout=30, env=dict(os.environ))
     assert r.returncode != 0 and var in r.stderr
+
+
+def test_sticky_alert_restored_after_restart(cfg_path, events):
+    with TestClient(app, client=LOCAL) as client:
+        app.state.alerts.trigger("panic", app.state.config["alerts"]["panic"], "127.0.0.1")
+    with TestClient(app, client=LOCAL) as client:
+        assert [a["key"] for a in client.get("/api/state").json()["alerts"]] == ["panic"]
+    assert "restored" in [e["event"] for e in events()]

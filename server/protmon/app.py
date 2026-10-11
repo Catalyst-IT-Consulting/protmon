@@ -61,11 +61,12 @@ async def lifespan(app):
     app.state.config = config.load(app.state.config_path)  # ConfigError stops startup
     app.state.token, app.state.allowed_ips = config.load_secrets(os.environ)
     app.state.log = log = EventLog()
-    app.state.alerts = State(log)
+    app.state.alerts = State(log, path=os.environ.get("PROTMON_STATE", "/var/lib/protmon/active.json"))
     app.state.watchers = set()
     app.state.alerts.on_change = lambda: [ev.set() for ev in app.state.watchers]
     cfg = app.state.config
     log.write("startup", commit=COMMIT, alerts=len(cfg["alerts"]), cameras=len(cfg["cameras"]))
+    app.state.alerts.restore()
     loop = asyncio.get_running_loop()
     try:
         loop.add_signal_handler(signal.SIGHUP, reload_config, app)

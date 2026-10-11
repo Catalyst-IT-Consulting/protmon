@@ -18,6 +18,7 @@ def cfg_path(tmp_path, monkeypatch):
     p.write_text(json.dumps(GOOD))
     monkeypatch.setenv("PROTMON_CONFIG", str(p))
     monkeypatch.setenv("PROTMON_EVENT_LOG", str(tmp_path / "events.jsonl"))
+    monkeypatch.setenv("PROTMON_STATE", str(tmp_path / "active.json"))
     monkeypatch.setenv("PROTMON_TOKEN", "s3cret")
     monkeypatch.setenv("PROTMON_ALLOWED_IPS", "198.51.100.30, 127.0.0.1")
     return p
