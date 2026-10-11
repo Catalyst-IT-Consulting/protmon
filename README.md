@@ -361,6 +361,18 @@ Check it from the LAN with `curl -X POST -H "X-Protmon-Token: $TOKEN"
 http://<pi>:8080/alert/<key>` (expect `204`); a wrong token or an address outside
 the allowlist gives `403`, and an unknown `<key>` shows an "Unmapped alert".
 
+### Admin page
+
+Open `http://<pi>:8080/admin` from localhost or a network listed in
+`PROTMON_ADMIN_NETWORKS`. It edits the whole config in one form: alerts (key,
+text, priority, duration, camera, text style), cameras, the Protect reachability
+check and the video stream cap. Alerts are listed in wall order, and each shows
+its webhook URL and header with copy buttons. Renaming a key changes its URL, so
+update the matching Alarm Manager rule. Camera RTSP URLs are write-only: they are
+never shown, and an empty field keeps the stored URL. A camera that an alert
+uses cannot be deleted. The webhook token is never shown; the page displays a
+placeholder for it. Save validates and applies the config without a restart.
+
 ## State feed
 
 Localhost only. `GET /api/state` returns

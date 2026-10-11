@@ -5,9 +5,10 @@ import json
 import os
 import tempfile
 import threading
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from . import config
 
@@ -73,6 +74,24 @@ def _write(path, old_data, new_data):
     except BaseException:
         os.unlink(tmp)
         raise
+
+
+WEB = Path(__file__).resolve().parents[2] / "web"
+ASSETS = {"admin.js": "text/javascript", "admin.css": "text/css"}
+NO_CACHE = {"cache-control": "no-cache"}
+pages = APIRouter(dependencies=[Depends(admin_only)])
+
+
+@pages.get("/admin")
+def page():
+    return FileResponse(WEB / "admin.html", headers=NO_CACHE)
+
+
+@pages.get("/admin/web/{name}")
+def asset(name: str):
+    if name not in ASSETS:
+        raise HTTPException(404)
+    return FileResponse(WEB / name, media_type=ASSETS[name], headers=NO_CACHE)
 
 
 @router.get("/config")

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protmon admin</title>
+<link rel="stylesheet" href="/admin/web/admin.css">
+</head>
+<body>
+<h1>Protmon admin</h1>
+<section>
+  <h2>Alerts</h2>
+  <p class="hint">Listed in wall order: priority 1 first. Each alert has its own webhook URL for an Alarm Manager rule.</p>
+  <div id="alerts"></div>
+  <button id="add-alert" type="button">Add alert</button>
+</section>
+<section>
+  <h2>Cameras</h2>
+  <p class="hint">The RTSP URL is write-only: it is never shown. Leave it empty to keep the stored one.</p>
+  <div id="cameras"></div>
+  <button id="add-camera" type="button">Add camera</button>
+</section>
+<section>
+  <h2>Settings</h2>
+  <div id="settings"></div>
+</section>
+<footer>
+  <button id="save" type="button">Save</button>
+  <button id="reload" type="button" hidden>Reload</button>
+  <span id="status" role="status"></span>
+</footer>
+<script src="/admin/web/admin.js"></script>
+</body>
+</html>

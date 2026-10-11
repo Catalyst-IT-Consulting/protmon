@@ -115,3 +115,23 @@ def test_new_camera_url_replaces_and_is_written(client, cfg_path):
     cfg["cameras"]["porch"] = "rtsp://192.0.2.22/s"
     assert put(client, cfg, doc["version"]).status_code == 200
     assert json.loads(cfg_path.read_text())["cameras"]["porch"] == "rtsp://192.0.2.22/s"
+
+
+def test_admin_page_and_assets_served(client):
+    r = client.get("/admin")
+    assert r.status_code == 200 and "text/html" in r.headers["content-type"]
+    assert r.headers["cache-control"] == "no-cache"
+    for name, kind in (("admin.js", "javascript"), ("admin.css", "css")):
+        r = client.get(f"/admin/web/{name}")
+        assert r.status_code == 200 and kind in r.headers["content-type"]
+
+
+def test_admin_unknown_asset_404(client):
+    assert client.get("/admin/web/admin.html").status_code == 404
+    assert client.get("/admin/web/nope.js").status_code == 404
+
+
+def test_admin_page_forbidden_outside_network(cfg_path):
+    with TestClient(app, client=("198.51.100.30", 1)) as c:
+        assert c.get("/admin").status_code == 403
+        assert c.get("/admin/web/admin.js").status_code == 403
