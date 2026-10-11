@@ -1,5 +1,6 @@
 const STALE_MS = 20000;  // server pings every 15s when quiet
 const DRIFT_MS = 60000;
+const GRACE_MS = 5000;  // reconnect time before the lost screen shows
 const $ = id => document.getElementById(id);
 const els = new Map();
 let ws, retry, delay = 1000, live = false, commit, alerts = [];
@@ -10,7 +11,7 @@ const GO2RTC = PREVIEW ? `${location.host}/admin/go2rtc` : `${location.hostname}
 const SHOW_MS = 5000, RETRY_MS = 15000;  // note after 5s without frames, new player every 15s
 const tiles = new Map();  // camera -> {div, el, gen, t0, ok, pos}
 let player, fails = 0, cap = 2;
-let lastMsg = performance.now(), srv = null;  // srv: {ms, at} from the latest server_time
+let lastMsg = performance.now(), lostAt = lastMsg, srv = null;  // srv: {ms, at} from the latest server_time
 
 function render(list) {
   const box = $("alerts"), seen = new Set();
@@ -115,6 +116,7 @@ function watch() {
 
 function onMsg(m) {
   lastMsg = performance.now();
+  lostAt = 0;
   live = true;
   delay = 1000;
   if (m.server_time) srv = { ms: Date.parse(m.server_time), at: lastMsg };
@@ -131,6 +133,7 @@ function drop(s) {
   if (s !== ws) return;
   ws = null;
   live = false;
+  lostAt ||= performance.now();
   s.close();
   retry = setTimeout(connect, delay);
   delay = Math.min(delay * 2, 10000);
@@ -144,23 +147,22 @@ function connect() {
 }
 
 function problem() {
-  if (!live) return "Server not reachable";
-  if (performance.now() - lastMsg > STALE_MS) return "Server not responding";
+  if (!live) return performance.now() - lostAt > GRACE_MS ? "Server not reachable" : null;
   if (srv && Math.abs(Date.now() - (srv.ms + performance.now() - srv.at)) > DRIFT_MS) return "Clock out of sync with server";
 }
 
 function tick() {
   watch();
-  const bad = PREVIEW ? null : problem();
   if (!PREVIEW && live && performance.now() - lastMsg > STALE_MS) drop(ws);
+  const bad = PREVIEW ? null : problem();
   if (bad) {
-    const s = Math.round((performance.now() - lastMsg) / 1000);
+    const s = Math.round((performance.now() - (lostAt || lastMsg)) / 1000);
     $("lost-why").textContent = bad;
     $("lost-last").textContent = (commit ? `No contact for ${s < 120 ? s + "s" : Math.floor(s / 60) + "m"}. ` : "Connecting. ") +
       (alerts.length ? "Last known alerts: " + alerts.map(a => a.text).join(" | ") : "");
   }
   const now = new Date();
-  $("clock").textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  $("clock").textContent = now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   $("date").textContent = now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
   document.body.dataset.view = bad ? "lost" : alerts.length ? "alerts" : "idle";
   for (const a of document.getAnimations()) a.startTime = 0;  // one clock, so video bars flash in step with banners

@@ -62,13 +62,14 @@ body[data-view="alerts"][data-video] #video { display: grid; }
   background: #000; color: #8a948a; font-size: 3vh; }
 .tile.bad .note { display: flex; }
 @media not all and (min-aspect-ratio: 3/1) {
-  body[data-video] #alerts { top: 80vh; display: grid; grid-auto-flow: column; gap: .4vh; padding: .4vh .6vh;
+  body[data-video] #alerts { top: 80vh; display: grid; grid-auto-flow: column; gap: .2vh; padding: 0;
     grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); grid-template-columns: repeat(var(--vcols), minmax(0, 1fr)); }
   body[data-video] #alerts[data-r="1"] { font-size: 8vh; }
   body[data-video] #alerts[data-r="2"] { font-size: 4vh; }
   body[data-video] #alerts[data-r="3"] { font-size: 3.2vh; }
   body[data-video] #alerts[data-r="4"] { font-size: 2.6vh; }
   body[data-video] .banner { padding: 0 1vw; gap: 1vw; }
+  body[data-video] .banner:not(.u) { border: 0; }
 }
 
 /* unmapped: magenta stripes and tag on top of the tier flash */
