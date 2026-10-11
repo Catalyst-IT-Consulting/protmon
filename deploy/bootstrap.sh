@@ -39,7 +39,13 @@ say() { printf '\n==> %s\n' "$*"; }
 
 say "Installing packages"
 apt-get update -qq
-apt-get install -y -qq git curl python3 python3-venv ca-certificates logrotate
+apt-get install -y -qq git curl python3 python3-venv ca-certificates logrotate \
+  cage chromium fonts-dejavu-core
+
+say "Creating the kiosk user"
+id protmon-kiosk >/dev/null 2>&1 || useradd --system --create-home \
+  --home-dir /var/lib/protmon-kiosk --shell /usr/sbin/nologin \
+  --groups video,render,input protmon-kiosk
 
 say "Creating directories"
 install -d -m 0755 "$ETC_DIR" "$STATE_DIR" "$LOG_DIR"

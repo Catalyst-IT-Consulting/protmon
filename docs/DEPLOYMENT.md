@@ -132,6 +132,33 @@ and `protmon-kiosk.service`, and they belong in the overlay as each one is
 built. Units that do not exist yet are skipped with a log line, which is why
 the deployer is already usable before the app exists.
 
+## Kiosk
+
+`protmon-kiosk.service` runs `cage` (a single-window Wayland compositor) with
+Chromium in kiosk mode on tty1, as the unprivileged `protmon-kiosk` user, and
+loads `http://127.0.0.1:8080/`. It starts on boot with no login, restarts on a
+crash, and is restarted by the deployer when `web/` changes. The Chromium
+profile lives in tmpfs and is incognito, so there are never restore, first-run,
+translate or update prompts. The compositor has no idle timeout, so the screen
+never blanks or dims, and the page hides the cursor. Raspberry Pi OS Lite has
+no desktop, so this unit replaces the desktop auto-login.
+
+```bash
+sudo systemctl restart protmon-kiosk
+journalctl -u protmon-kiosk -f
+```
+
+Output is 1080p when the TV advertises it as its preferred mode. To force it,
+append `video=HDMI-A-1:1920x1080@60` to `/boot/firmware/cmdline.txt` and reboot.
+
+If the TV goes to standby on its own, check what it receives over CEC with
+`cec-ctl -d /dev/cec0 --show-topology`. Most sets honor a `Standby` only when
+something sends one, and nothing here does. Turn off the set's own "auto power
+off" and "CEC" energy options if it still sleeps.
+
+On-site checks: power cycle the Pi and confirm it reaches the idle screen
+unattended, then leave it 24 hours and confirm nothing dims or blanks.
+
 ## First-time setup
 
 Once, with a keyboard or an SSH session on the Pi:
