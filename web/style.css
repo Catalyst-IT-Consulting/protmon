@@ -98,10 +98,10 @@ body[data-view="alerts"][data-video] #video { display: grid; }
 
 /* info: bottom right of the text screen on idle and lost */
 #info { position: fixed; right: 1.5vw; bottom: 1.5vh; z-index: 11; text-align: right; color: #3c4a3c;
-  font-size: 2.4vh; line-height: 1.4; }
+  font-size: 1.7vh; line-height: 1.4; }
 #info [hidden] { display: none; }
-#status { font-size: 3.4vh; }
-#sync { font-size: 3vh; color: #b8860b; }
+#status { font-size: 2.4vh; }
+#sync { font-size: 2.1vh; color: #b8860b; }
 body[data-view="lost"] #info { bottom: 10.5vh; color: #000; }
 body[data-view="lost"] #status, body[data-view="lost"] #sync { display: none; }
 
