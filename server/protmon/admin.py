@@ -116,7 +116,8 @@ def _write(path, old_data, new_data):
 
 WEB = Path(__file__).resolve().parents[2] / "web"
 ASSETS = {"admin.js": "text/javascript", "admin.css": "text/css",
-          "app.js": "text/javascript", "style.css": "text/css"}  # the last two serve the preview
+          "app.js": "text/javascript", "style.css": "text/css",  # the preview
+          "sounds.js": "text/javascript"}
 NO_CACHE = {"cache-control": "no-cache"}
 GO2RTC = "127.0.0.1:1984"
 GO2RTC_JS = {"video-stream.js", "video-rtc.js"}

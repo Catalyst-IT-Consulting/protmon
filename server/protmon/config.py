@@ -5,11 +5,15 @@ import re
 import sys
 
 KEY_RE = re.compile(r"[A-Za-z0-9_-]+")
-FIELDS = {"text", "priority", "camera", "duration", "style"}
+FIELDS = {"text", "priority", "camera", "duration", "style", "sound"}
 STYLE_FIELDS = {"fg", "bg", "alt", "animation"}
 ANIMATIONS = ("none", "flash", "flash-alt", "invert")
 COLOR_RE = re.compile(r"#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})")
 PRIORITIES = (1, 2, 3)
+# Must match the tone names in web/sounds.js.
+TONES = ("chime", "ding-dong", "bell", "beep", "double-beep", "triple-beep", "pulse",
+         "alarm", "klaxon", "siren", "warble", "rising", "falling", "chirp")
+MAX_PLAYS = 20
 VIDEO_FIELDS = {"max_streams"}
 PROTECT_FIELDS = {"address", "interval", "failures"}
 HOST_RE = re.compile(r"[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?")
@@ -48,6 +52,18 @@ def _style(key, s):
     return dict(s) or None
 
 
+def _sound(key, s):
+    if s is None:
+        return None
+    if not isinstance(s, dict) or set(s) != {"tone", "plays"}:
+        raise ConfigError(f"alert {key!r}: sound must be an object with tone and plays")
+    if s["tone"] not in TONES:
+        raise ConfigError(f"alert {key!r}: sound tone must be one of {', '.join(TONES)}, got {s['tone']!r}")
+    if not _is_int(s["plays"]) or not 1 <= s["plays"] <= MAX_PLAYS:
+        raise ConfigError(f"alert {key!r}: sound plays must be an integer from 1 to {MAX_PLAYS}, got {s['plays']!r}")
+    return dict(s)
+
+
 def _alert(key, a, cameras):
     if not KEY_RE.fullmatch(key):
         raise ConfigError(f"alert {key!r}: key must match [A-Za-z0-9_-]+")
@@ -68,7 +84,8 @@ def _alert(key, a, cameras):
     dur = a.get("duration")
     if not _is_int(dur) or dur <= 0:
         raise ConfigError(f"alert {key!r}: duration must be a positive integer, got {dur!r}")
-    return {"text": text, "priority": pri, "camera": cam, "duration": dur, "style": _style(key, a.get("style"))}
+    return {"text": text, "priority": pri, "camera": cam, "duration": dur, "style": _style(key, a.get("style")),
+            "sound": _sound(key, a.get("sound"))}
 
 
 def _protect(p):

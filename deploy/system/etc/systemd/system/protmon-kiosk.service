@@ -26,7 +26,7 @@ ExecStart=/usr/bin/cage -d -m extend -- /usr/bin/chromium \
   --kiosk --incognito --user-data-dir=/run/protmon-kiosk/profile \
   --ozone-platform=wayland --noerrdialogs --disable-infobars --no-first-run \
   --disable-session-crashed-bubble --disable-features=Translate \
-  --check-for-update-interval=31536000 \
+  --check-for-update-interval=31536000 --autoplay-policy=no-user-gesture-required \
   http://127.0.0.1:8080/
 Restart=always
 RestartSec=2

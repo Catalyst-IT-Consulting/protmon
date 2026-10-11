@@ -287,7 +287,7 @@ printf 'cage\n' >>"$T/installed.txt"
 printf 'grim\n' >>"$T/hs/deploy/packages.txt"
 hs
 assert "added package installed" grep -q '^apt-get install -y -qq grim$' "$T/hs.log"
-assert "existing kiosk user gets groups" grep -q '^usermod -aG video,render,input protmon-kiosk' "$T/hs.log"
+assert "existing kiosk user gets groups" grep -q '^usermod -aG video,render,input,audio protmon-kiosk' "$T/hs.log"
 refute "existing kiosk user not recreated" grep -q '^useradd' "$T/hs.log"
 
 case_ "14. firewall renders per address family and refuses to lock out SSH; journald restarts only on change"

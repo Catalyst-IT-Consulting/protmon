@@ -145,6 +145,9 @@ function renderAlerts() {
       loadLog(false);
     };
     keyIn.addEventListener("input", () => { trig.disabled = !a.orig || a.orig !== a.key; });
+    const test = el("button", { type: "button", textContent: "Test sound", disabled: !a.tone });
+    test.onclick = () => playSound({ tone: a.tone, plays: 1 });
+    const plays = input(a, "plays", { type: "number", min: 1, max: 20, step: 1, className: "short", disabled: !a.tone });
     return el("div", { className: "card" },
       el("div", { className: "row" },
         field("Key", keyIn),
@@ -159,6 +162,10 @@ function renderAlerts() {
         field("Background", input(a, "bg", { className: "short", placeholder: "#rrggbb" })),
         field("Alternate color", input(a, "alt", { className: "short", placeholder: "#rrggbb" })),
         field("Animation", select(a, "animation", [["", "default"], ...ANIMATIONS.map((n) => [n, n])]))),
+      el("div", { className: "row" },
+        field("Sound", select(a, "tone", [["", "none (silent)"], ...Object.keys(TONES).map((n) => [n, n])],
+          () => { test.disabled = plays.disabled = !a.tone; })),
+        field("Plays", plays), test),
       el("div", { className: "row" }, url.box, hdr.box),
       warn);
   }));
@@ -223,6 +230,7 @@ async function load(msg) {
       key, orig: key, text: a.text, priority: String(a.priority), duration: String(a.duration), camera: a.camera || "",
       fg: (a.style || {}).fg || "", bg: (a.style || {}).bg || "", alt: (a.style || {}).alt || "",
       animation: (a.style || {}).animation || "",
+      tone: (a.sound || {}).tone || "", plays: String((a.sound || {}).plays ?? 3),
     }))
     .sort((x, y) => x.priority - y.priority);
   const p = cfg.protect;
@@ -249,6 +257,7 @@ function build() {
     cfg.alerts[a.key] = {
       text: a.text, priority: Number(a.priority), camera: a.camera || null, duration: num(a.duration),
       ...(Object.keys(style).length ? { style } : {}),
+      ...(a.tone ? { sound: { tone: a.tone, plays: num(a.plays) } } : {}),
     };
   }
   if (protect) cfg.protect = { address: protect.address, interval: num(protect.interval), failures: num(protect.failures) };
@@ -297,7 +306,7 @@ for (const ev of ["input", "change"]) document.addEventListener(ev, postPreview)
 $("log-filter").onsubmit = (ev) => { ev.preventDefault(); loadLog(false); };
 $("log-older").onclick = () => loadLog(true);
 $("add-alert").onclick = () => {
-  alerts.push({ key: "", orig: "", text: "", priority: "2", duration: "60", camera: "", fg: "", bg: "", alt: "", animation: "" });
+  alerts.push({ key: "", orig: "", text: "", priority: "2", duration: "60", camera: "", fg: "", bg: "", alt: "", animation: "", tone: "", plays: "3" });
   renderAlerts();
 };
 $("add-camera").onclick = () => { cameras.push({ name: "", existing: false, url: "" }); renderCameras(); };

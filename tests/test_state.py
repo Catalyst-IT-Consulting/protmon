@@ -162,15 +162,15 @@ def test_save_is_atomic_and_failure_does_not_raise(mk, tmp_path):
     assert any(e["event"] == "state-save-failed" for e in events())
 
 
-def test_style_in_snapshot_and_survives_restart(mk):
+def test_style_and_sound_in_snapshot_and_survive_restart(mk):
     new, _, _, path = mk
-    st = {"fg": "#fff", "animation": "invert"}
+    st, snd = {"fg": "#fff", "animation": "invert"}, {"tone": "chime", "plays": 2}
     a = new()
-    a.trigger("p", {**LONG, "style": st}, "10.0.0.5")
-    assert a.snapshot()[0]["style"] == st
+    a.trigger("p", {**LONG, "style": st, "sound": snd}, "10.0.0.5")
+    assert a.snapshot()[0]["style"] == st and a.snapshot()[0]["sound"] == snd
     b = new()
     b.restore()
-    assert b.snapshot()[0]["style"] == st
+    assert b.snapshot()[0]["style"] == st and b.snapshot()[0]["sound"] == snd
 
 
 def test_restore_state_file_without_style(mk):
@@ -181,5 +181,5 @@ def test_restore_state_file_without_style(mk):
     b = new()
     b.restore()
     (r,) = b.snapshot()
-    assert r["key"] == "p" and r["style"] is None
+    assert r["key"] == "p" and r["style"] is None and r["sound"] is None
     assert not any(e["event"] == "state-restore-failed" for e in events())

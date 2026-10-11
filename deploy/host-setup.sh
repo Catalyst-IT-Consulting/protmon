@@ -37,9 +37,9 @@ if [ "$(cat "$STAMP" 2>/dev/null || true)" != "$want" ]; then
 fi
 
 if "$GETENT" passwd protmon-kiosk >/dev/null; then
-  "$USERMOD" -aG video,render,input protmon-kiosk
+  "$USERMOD" -aG video,render,input,audio protmon-kiosk
 else
   log "creating protmon-kiosk"
   "$USERADD" --system --create-home --home-dir /var/lib/protmon-kiosk \
-    --shell /usr/sbin/nologin --groups video,render,input protmon-kiosk
+    --shell /usr/sbin/nologin --groups video,render,input,audio protmon-kiosk
 fi

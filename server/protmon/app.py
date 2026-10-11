@@ -127,7 +127,7 @@ def _state_doc():
             "clock_synced": _clock_synced(), "max_streams": app.state.config["video"]["max_streams"]}
 
 
-PAGE_FILES = {"app.js": "text/javascript", "style.css": "text/css"}
+PAGE_FILES = {"app.js": "text/javascript", "sounds.js": "text/javascript", "style.css": "text/css"}
 
 
 @app.get("/", dependencies=[Depends(local_only)])

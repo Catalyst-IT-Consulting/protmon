@@ -1,5 +1,6 @@
 import copy
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -7,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from conftest import GOOD
-from protmon.config import ConfigError, load
+from protmon.config import TONES, ConfigError, load
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -27,7 +28,7 @@ def mutated(**alert):
 def test_good_config(tmp_path):
     cfg = load(write(tmp_path, GOOD))
     assert cfg["alerts"]["garage-motion"] == {"text": "Garage Motion", "priority": 3,
-                                              "camera": "garage", "duration": 30, "style": None}
+                                              "camera": "garage", "duration": 30, "style": None, "sound": None}
 
 
 def test_missing_duration_rejected(tmp_path):
@@ -132,6 +133,29 @@ def test_style_accepted():
 def test_bad_style_rejected(tmp_path, style, msg):
     with pytest.raises(ConfigError, match=msg):
         load(write(tmp_path, mutated(style=style)))
+
+
+def test_sound_accepted():
+    snd = {"tone": "siren", "plays": 3}
+    assert load_dict(mutated(sound=snd))["alerts"]["garage-motion"]["sound"] == snd
+
+
+@pytest.mark.parametrize("sound,msg", [
+    ({"tone": "siren"}, "sound must be an object with tone and plays"),
+    ({"tone": "siren", "plays": 1, "vol": 1}, "sound must be an object with tone and plays"),
+    ({"tone": "kazoo", "plays": 1}, "sound tone must be one of"),
+    ({"tone": "siren", "plays": 0}, "sound plays must be an integer"),
+    ({"tone": "siren", "plays": 21}, "sound plays must be an integer"),
+    ({"tone": "siren", "plays": True}, "sound plays must be an integer"),
+])
+def test_bad_sound_rejected(tmp_path, sound, msg):
+    with pytest.raises(ConfigError, match=msg):
+        load(write(tmp_path, mutated(sound=sound)))
+
+
+def test_tones_match_page():
+    js = (ROOT / "web" / "sounds.js").read_text().split("const TONES = {", 1)[1].split("\n};", 1)[0]
+    assert tuple(re.findall(r'^  "([a-z-]+)":', js, re.M)) == TONES
 
 
 def load_dict(data):

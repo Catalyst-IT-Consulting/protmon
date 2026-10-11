@@ -12,6 +12,7 @@ const SHOW_MS = 5000, RETRY_MS = 15000;  // note after 5s without frames, new pl
 const tiles = new Map();  // camera -> {div, el, gen, t0, ok, pos}
 let player, fails = 0, cap = 2;
 let lastMsg = performance.now(), lostAt = lastMsg, srv = null;  // srv: {ms, at} from the latest server_time
+let heard = null, sounding = null;  // heard: key -> last_seen; sounding: {key, priority, h}
 
 function render(list) {
   const box = $("alerts"), seen = new Set();
@@ -114,6 +115,18 @@ function watch() {
   }
 }
 
+// A raised or refreshed alert plays its sound unless a higher priority one is playing.
+function sound(list) {
+  const fresh = heard ? list.filter(a => a.sound && heard.get(a.key) !== a.last_seen) : [];
+  heard = new Map(list.map(a => [a.key, a.last_seen]));
+  if (sounding && !heard.has(sounding.key)) { sounding.h.stop(); sounding = null; }
+  const best = fresh.reduce((b, a) => !b || a.priority < b.priority || (a.priority === b.priority && a.last_seen > b.last_seen) ? a : b, null);
+  if (!best || (sounding && sounding.priority < best.priority)) return;
+  if (sounding) sounding.h.stop();
+  const s = sounding = { key: best.key, priority: best.priority };
+  s.h = playSound(best.sound, () => { if (sounding === s) sounding = null; });
+}
+
 function onMsg(m) {
   lastMsg = performance.now();
   lostAt = 0;
@@ -128,6 +141,7 @@ function onMsg(m) {
   cap = m.max_streams || 2;
   $("commit").textContent = commit.slice(0, 7);
   render(alerts);
+  if (!PREVIEW) sound(alerts);
 }
 
 function drop(s) {

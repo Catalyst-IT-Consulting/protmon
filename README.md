@@ -181,6 +181,7 @@ edit; `config.json` is gitignored because it holds camera credentials.
 | `camera` | A key into `cameras`, or `null` for text-only (a room with no camera) |
 | `duration` | Seconds until the alert expires. Required; a repeat trigger restarts it |
 | `style` | Optional object that overrides the tier look; see below |
+| `sound` | Optional `{"tone": "<name>", "plays": N}`; omit for a silent alert. See below |
 
 `style` takes any of `fg` (text color), `bg` (background color), `alt` (second
 background color for `flash-alt`, default `#fff`) and `animation`. Colors are hex,
@@ -197,11 +198,19 @@ background color for `flash-alt`, default `#fff`) and `animation`. Colors are he
 When `animation` is omitted the tier's own flash is used, with the custom
 colors. Unmapped alerts ignore styling and keep their fixed look.
 
-| Tier | Class | Default lifetime | Flash | Sound |
-| --- | --- | --- | --- | --- |
-| 1 | Silent alarm, life-safety | Long (e.g. 30 minutes) | Hardest | Yes, if audio is adopted |
-| 2 | Doors, perimeter | Medium | Moderate | No |
-| 3 | Motion, informational | Short | Gentle | No |
+Sound is opt-in per alert. `tone` is one of `chime`, `ding-dong`, `bell`, `beep`,
+`double-beep`, `triple-beep`, `pulse`, `alarm`, `klaxon`, `siren`, `warble`,
+`rising`, `falling` or `chirp`, generated in the browser. `plays` (1 to 20) is
+how many times it plays when the alert is raised or refreshed. A new alert at the
+same or higher priority takes over the sound; a lower priority one never cuts off
+a higher one. Clearing an alert stops its sound. Audio goes to HDMI 0, and the
+volume is set on the display. Leave sound off for silent or duress alarms.
+
+| Tier | Class | Default lifetime | Flash |
+| --- | --- | --- | --- |
+| 1 | Silent alarm, life-safety | Long (e.g. 30 minutes) | Hardest |
+| 2 | Doors, perimeter | Medium | Moderate |
+| 3 | Motion, informational | Short | Gentle |
 
 Every alert needs a `duration`. There is no acknowledge step, so nothing stays up
 indefinitely. Unmapped alerts show for 30 minutes.
@@ -391,7 +400,7 @@ the allowlist gives `403`, and an unknown `<key>` shows an "Unmapped alert".
 
 Open `http://<pi>:8080/admin` from localhost or a network listed in
 `PROTMON_ADMIN_NETWORKS`, and sign in with `PROTMON_ADMIN_PASSWORD`. It edits the whole config in one form: alerts (key,
-text, priority, duration, camera, text style), cameras, the Protect reachability
+text, priority, duration, camera, text style, sound with a test button), cameras, the Protect reachability
 check and the video stream cap. Alerts are listed in wall order, and each shows
 its webhook URL and header with copy buttons. Renaming a key changes its URL, so
 update the matching Alarm Manager rule. Camera RTSP URLs are shown in full and
@@ -414,7 +423,7 @@ the source IP and request body. It is read-only: retention stays with logrotate.
 Localhost only. `GET /api/state` returns
 `{"alerts": [...], "commit": "<sha>", "server_time": "<ISO-8601>", "clock_synced": true, "max_streams": 2}`, alerts
 sorted by priority then first seen. Each alert carries `key`, `text`,
-`priority`, `camera` (the stream name, never a URL), `style` (or `null`), `first_seen`, `last_seen`
+`priority`, `camera` (the stream name, never a URL), `style` (or `null`), `sound` (or `null`), `first_seen`, `last_seen`
 and `expires_at`.
 
 `/ws` is a WebSocket that sends `{"type": "state", "alerts": [...], "commit":

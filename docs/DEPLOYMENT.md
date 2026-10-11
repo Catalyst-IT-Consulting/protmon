@@ -87,7 +87,7 @@ Pi. Everything below is applied by the deployer, so a change is a push.
 | --- | --- | --- |
 | apt packages | `deploy/packages.txt` | `host-setup.sh`, from `postfetch.sh`. Installs only what is missing, and only when the file changed |
 | the `protmon-kiosk` user and its groups | `deploy/host-setup.sh` | same, every deploy |
-| systemd units, logrotate, udev rules, journald limits, firewall | `deploy/system/` | `install-system.sh` |
+| systemd units, logrotate, udev rules, journald limits, firewall, ALSA default output (HDMI 0) | `deploy/system/` | `install-system.sh` |
 | `video=` mode per HDMI port in `cmdline.txt` | `deploy/boot/cmdline.args` | `boot-config.sh`, from `install-system.sh` |
 | `config.txt` settings | `deploy/boot/config.txt`, kept between `# BEGIN protmon` and `# END protmon` | `boot-config.sh` |
 | go2rtc binary | `deploy/go2rtc/pin.env` | `postfetch.sh` |
@@ -213,7 +213,9 @@ profile lives in tmpfs and is incognito, so there are never restore, first-run,
 translate or update prompts. The compositor has no idle timeout, so the screen
 never blanks or dims, and the page hides the cursor. A udev rule hides the HDMI
 CEC remotes from the compositor, since they report pointer axes and would
-otherwise put a cursor on screen. Raspberry Pi OS Lite has
+otherwise put a cursor on screen. Chromium runs with
+`--autoplay-policy=no-user-gesture-required` so alert sounds play without a
+click, and `/etc/asound.conf` sends audio to HDMI 0. Raspberry Pi OS Lite has
 no desktop, so this unit replaces the desktop auto-login.
 
 ```bash

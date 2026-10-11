@@ -11,7 +11,8 @@
       "priority": 3,
       "camera": "garage",
       "duration": 30,
-      "style": { "fg": "#fff", "bg": "#006400", "animation": "flash-alt", "alt": "#003300" }
+      "style": { "fg": "#fff", "bg": "#006400", "animation": "flash-alt", "alt": "#003300" },
+      "sound": { "tone": "chime", "plays": 1 }
     },
     "entrance-panic": {
       "text": "Entrance Panic Button",
