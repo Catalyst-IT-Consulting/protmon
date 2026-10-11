@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 GOOD = {
-    "cameras": {"garage": "rtsp://u:p@192.0.2.21/s"},
+    "cameras": {"garage": "rtsp://192.0.2.21/s"},
     "alerts": {
         "garage-motion": {"text": "Garage Motion", "priority": 3, "camera": "garage", "duration": 30},
         "panic": {"text": "Panic", "priority": 1, "camera": None, "duration": None},
