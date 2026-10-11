@@ -8,7 +8,7 @@ DEFAULT_PATH = "/var/log/protmon/events.jsonl"
 
 class EventLog:
     def __init__(self, path=None):
-        path = path or os.environ.get("PROTMON_EVENT_LOG", DEFAULT_PATH)
+        path = self.path = path or os.environ.get("PROTMON_EVENT_LOG", DEFAULT_PATH)
         try:
             self._f = open(path, "a", encoding="utf-8")
         except OSError as e:

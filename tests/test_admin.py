@@ -135,3 +135,72 @@ def test_admin_page_forbidden_outside_network(cfg_path):
     with TestClient(app, client=("198.51.100.30", 1)) as c:
         assert c.get("/admin").status_code == 403
         assert c.get("/admin/web/admin.js").status_code == 403
+
+
+def _log(tmp_path, name, recs, raw=()):
+    import gzip
+    lines = "".join(json.dumps(r) + "\n" for r in recs) + "".join(raw)
+    if name.endswith(".gz"):
+        (tmp_path / name).write_bytes(gzip.compress(lines.encode()))
+    else:
+        (tmp_path / name).write_text(lines)
+
+
+def _ev(ts, event="raised", key="k1", **kw):
+    return {"ts": ts, "event": event, "key": key, **kw}
+
+
+@pytest.fixture
+def logs(cfg_path, tmp_path):
+    _log(tmp_path, "events.jsonl.2.gz", [_ev("2026-01-01T10:00:00+00:00")])
+    _log(tmp_path, "events.jsonl.1", [_ev("2026-01-02T10:00:00+00:00", "expired"),
+                                      _ev("2026-01-02T11:00:00+00:00", key="k2", source_ip="10.0.0.5", body="hi")],
+         raw=["not json\n", "\n"])
+    _log(tmp_path, "events.jsonl", [_ev("2026-01-03T10:00:00+00:00", "rejected-auth", key=None)])
+
+
+def events_of(c, **q):
+    r = c.get("/admin/api/events", params=q)
+    assert r.status_code == 200
+    return r.json()
+
+
+def test_events_newest_first_across_files(client, logs):
+    got = events_of(client, since="2026-01-01")["events"]
+    assert [e["ts"][:13] for e in got] == ["2026-01-03T10", "2026-01-02T11", "2026-01-02T10", "2026-01-01T10"]
+    assert got[1]["source_ip"] == "10.0.0.5" and got[1]["body"] == "hi"
+
+
+def test_events_filters(client, logs):
+    assert [e["ts"][:13] for e in events_of(client, key="k1")["events"]] == ["2026-01-02T10", "2026-01-01T10"]
+    assert [e["event"] for e in events_of(client, event="rejected-auth")["events"]] == ["rejected-auth"]
+    got = events_of(client, key="k1", since="2026-01-02", until="2026-01-02")["events"]
+    assert [e["event"] for e in got] == ["expired"]
+
+
+def test_events_paging(client, logs):
+    seen, q = [], {"since": "2026-01-01", "limit": 3}
+    while True:
+        doc = events_of(client, **q)
+        seen += [e["ts"] for e in doc["events"]]
+        if not doc["more"]:
+            break
+        q["before"] = doc["next"]
+    assert seen == sorted(seen, reverse=True) and len(seen) == 4
+
+
+def test_events_paging_same_second(client, cfg_path, tmp_path):
+    _log(tmp_path, "events.jsonl", [_ev("2026-01-03T10:00:00+00:00", key="p", body=str(i)) for i in range(5)])
+    seen, q = [], {"key": "p", "limit": 2}
+    while True:
+        doc = events_of(client, **q)
+        seen += [e["body"] for e in doc["events"]]
+        if not doc["more"]:
+            break
+        q["before"] = doc["next"]
+    assert seen == ["4", "3", "2", "1", "0"]
+
+
+def test_events_forbidden_outside_network(cfg_path):
+    with TestClient(app, client=("198.51.100.30", 1)) as c:
+        assert c.get("/admin/api/events").status_code == 403

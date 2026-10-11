@@ -194,6 +194,31 @@ async function save() {
   setStatus(doc.error || doc.detail || `Save failed (${status})`, "err");
 }
 
+let logNext = null;
+
+async function loadLog(more) {
+  const q = new URLSearchParams(new FormData($("log-filter")));
+  for (const [k, v] of [...q]) if (!v) q.delete(k);
+  if (more) q.set("before", logNext);
+  const r = await fetch("/admin/api/events?" + q);
+  const doc = await r.json().catch(() => ({}));
+  if (r.status !== 200) return ($("log-status").textContent = doc.detail || `Log load failed (${r.status})`);
+  const body = $("log").tBodies[0];
+  if (!more) body.replaceChildren();
+  for (const e of doc.events) {
+    const { ts, event, key, source_ip, ...rest } = e;
+    body.append(el("tr", {},
+      el("td", { textContent: ts.replace("T", " ") }), el("td", { textContent: event }),
+      el("td", { textContent: key ?? "" }), el("td", { textContent: source_ip ?? "" }),
+      el("td", { className: "details", textContent: Object.keys(rest).length ? JSON.stringify(rest) : "" })));
+  }
+  logNext = doc.next;
+  $("log-older").hidden = !doc.more;
+  $("log-status").textContent = body.rows.length ? "" : "No matching events.";
+}
+
+$("log-filter").onsubmit = (ev) => { ev.preventDefault(); loadLog(false); };
+$("log-older").onclick = () => loadLog(true);
 $("add-alert").onclick = () => {
   alerts.push({ key: "", orig: "", text: "", priority: "2", duration: "60", camera: "", fg: "", bg: "", alt: "", animation: "" });
   renderAlerts();
@@ -202,3 +227,4 @@ $("add-camera").onclick = () => { cameras.push({ name: "", existing: false, url:
 $("save").onclick = save;
 $("reload").onclick = () => load("Reloaded.");
 load();
+loadLog(false);

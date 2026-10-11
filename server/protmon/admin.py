@@ -1,13 +1,15 @@
 import copy
+import gzip
 import hashlib
 import ipaddress
 import json
 import os
+import re
 import tempfile
 import threading
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from . import config
@@ -139,3 +141,59 @@ def put_config(request: Request, body: dict):
         app.state.log.write("config-changed", source_ip=request.client.host if request.client else None,
                             **_summary(old, merged))
     return {"version": _version(new_data)}
+
+
+def _log_files(path):
+    """The live log, then rotated files from newest to oldest."""
+    p = Path(path)
+    rotated = []
+    for f in p.parent.glob(p.name + ".*"):
+        m = re.fullmatch(r"(\d+)(\.gz)?", f.name[len(p.name) + 1:])
+        if m:
+            rotated.append((int(m[1]), f))
+    return [p] + [f for _, f in sorted(rotated)]
+
+
+def _records(path):
+    """Every parsable event, newest first."""
+    for f in _log_files(path):
+        try:
+            opener = gzip.open if f.suffix == ".gz" else open
+            with opener(f, "rt", encoding="utf-8", errors="replace") as fh:
+                lines = fh.readlines()
+        except (OSError, EOFError):
+            continue
+        for line in reversed(lines):
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(rec, dict) and isinstance(rec.get("ts"), str):
+                yield rec
+
+
+@router.get("/events")
+def get_events(request: Request, key: str = "", event: str = "", since: str = "", until: str = "",
+               before: str = "", limit: int = Query(100, ge=1, le=500)):
+    # before is "<ts>,<n>": resume after n records already shown at that timestamp.
+    cur_ts, _, n = before.partition(",")
+    skip = int(n) if n.isdigit() else 0
+    out, more = [], False
+    for rec in _records(request.app.state.log.path):
+        ts = rec["ts"]
+        if (key and rec.get("key") != key) or (event and rec.get("event") != event):
+            continue
+        if (since and ts[:10] < since) or (until and ts[:10] > until):
+            continue
+        if cur_ts and (ts > cur_ts or (ts == cur_ts and skip > 0)):
+            skip -= ts == cur_ts
+            continue
+        if len(out) == limit:
+            more = True
+            break
+        out.append(rec)
+    nxt = None
+    if more:
+        last = out[-1]["ts"]
+        nxt = f"{last},{sum(r['ts'] == last for r in out) + (int(n) if last == cur_ts and n.isdigit() else 0)}"
+    return {"events": out, "more": more, "next": nxt}

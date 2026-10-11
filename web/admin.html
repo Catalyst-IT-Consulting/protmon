@@ -24,6 +24,26 @@
   <h2>Settings</h2>
   <div id="settings"></div>
 </section>
+<section>
+  <h2>Event log</h2>
+  <p class="hint">Newest first, including rotated files. Read-only.</p>
+  <form id="log-filter" class="row">
+    <label>Key<input name="key" class="short"></label>
+    <label>Event<input name="event" list="event-types" class="short"></label>
+    <label>From<input name="since" type="date"></label>
+    <label>To<input name="until" type="date"></label>
+    <button type="submit">Search</button>
+  </form>
+  <datalist id="event-types">
+    <option value="raised"><option value="refreshed"><option value="cleared"><option value="expired">
+    <option value="unmapped"><option value="rejected-auth"><option value="rejected-admin">
+    <option value="config-reloaded"><option value="config-changed"><option value="config-reload-failed">
+    <option value="protect-unreachable"><option value="protect-restored"><option value="startup">
+  </datalist>
+  <table id="log"><thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Source IP</th><th>Details</th></tr></thead><tbody></tbody></table>
+  <p id="log-status" class="hint"></p>
+  <button id="log-older" type="button" hidden>Older</button>
+</section>
 <footer>
   <button id="save" type="button">Save</button>
   <button id="reload" type="button" hidden>Reload</button>
