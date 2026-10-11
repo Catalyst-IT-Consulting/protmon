@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 import copy
 import gzip
 import hashlib
@@ -7,10 +9,15 @@ import os
 import re
 import tempfile
 import threading
+import urllib.request
 from pathlib import Path
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from starlette.requests import HTTPConnection
+from websockets.asyncio.client import connect
+from websockets.exceptions import WebSocketException
 
 from . import config
 
@@ -19,14 +26,19 @@ MUTATING = {"PUT", "POST", "DELETE", "PATCH"}
 _write_lock = threading.Lock()
 
 
-def admin_only(request: Request):
-    host = request.client.host if request.client else None
+def _allowed(conn: HTTPConnection) -> bool:
+    host = conn.client.host if conn.client else None
     try:
-        ok = host in LOCAL or any(ipaddress.ip_address(host) in n for n in request.app.state.admin_networks)
+        ok = host in LOCAL or any(ipaddress.ip_address(host) in n for n in conn.app.state.admin_networks)
     except ValueError:
         ok = False
     if not ok:
-        request.app.state.log.write("rejected-admin", source_ip=host, path=request.url.path)
+        conn.app.state.log.write("rejected-admin", source_ip=host, path=conn.url.path)
+    return ok
+
+
+def admin_only(request: Request):
+    if not _allowed(request):
         raise HTTPException(403, "forbidden")
     # A custom header forces a CORS preflight, which a cross-site page cannot pass.
     if request.method in MUTATING and (
@@ -79,9 +91,13 @@ def _write(path, old_data, new_data):
 
 
 WEB = Path(__file__).resolve().parents[2] / "web"
-ASSETS = {"admin.js": "text/javascript", "admin.css": "text/css"}
+ASSETS = {"admin.js": "text/javascript", "admin.css": "text/css",
+          "app.js": "text/javascript", "style.css": "text/css"}  # the last two serve the preview
 NO_CACHE = {"cache-control": "no-cache"}
+GO2RTC = "127.0.0.1:1984"
+GO2RTC_JS = {"video-stream.js", "video-rtc.js"}
 pages = APIRouter(dependencies=[Depends(admin_only)])
+ws_router = APIRouter()
 
 
 @pages.get("/admin")
@@ -94,6 +110,54 @@ def asset(name: str):
     if name not in ASSETS:
         raise HTTPException(404)
     return FileResponse(WEB / name, media_type=ASSETS[name], headers=NO_CACHE)
+
+
+@pages.get("/admin/preview")
+def preview():
+    html = (WEB / "index.html").read_text().replace("/web/", "/admin/web/")
+    return HTMLResponse(html, headers=NO_CACHE)
+
+
+@pages.get("/admin/go2rtc/{name}")
+def go2rtc_js(name: str):
+    if name not in GO2RTC_JS:
+        raise HTTPException(404)
+    try:
+        with urllib.request.urlopen(f"http://{GO2RTC}/{name}", timeout=5) as r:
+            body = r.read()
+    except OSError:
+        raise HTTPException(502, "go2rtc unavailable")
+    return Response(body, media_type="text/javascript", headers=NO_CACHE)
+
+
+@ws_router.websocket("/admin/go2rtc/api/ws")
+async def go2rtc_ws(ws: WebSocket):
+    src = ws.query_params.get("src")
+    if not _allowed(ws) or src not in ws.app.state.config["cameras"]:
+        return await ws.close(1008)
+    try:
+        async with connect(
+                f"ws://{GO2RTC}/api/ws?" + urlencode({"src": src}), max_size=None) as up:
+            await ws.accept()
+
+            async def down():
+                async for m in up:
+                    await (ws.send_text(m) if isinstance(m, str) else ws.send_bytes(m))
+
+            async def upward():
+                while (m := await ws.receive())["type"] != "websocket.disconnect":
+                    await up.send(m["text"] if m.get("text") is not None else m["bytes"])
+
+            tasks = [asyncio.create_task(down()), asyncio.create_task(upward())]
+            await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for t in tasks:
+                t.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+    except (OSError, WebSocketException):
+        pass
+    finally:
+        with contextlib.suppress(Exception):
+            await ws.close()
 
 
 @router.get("/config")

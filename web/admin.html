@@ -15,6 +15,15 @@
   <button id="add-alert" type="button">Add alert</button>
 </section>
 <section>
+  <h2>Preview</h2>
+  <p class="hint">The wall page showing the alerts ticked "Preview", including unsaved edits. No alert is raised.</p>
+  <div class="row">
+    <label class="inline"><input type="checkbox" id="two-screens">Two screens</label>
+    <button id="fullscreen" type="button">Fullscreen</button>
+  </div>
+  <div id="stage"><iframe id="preview" src="/admin/preview" title="Wall preview"></iframe></div>
+</section>
+<section>
   <h2>Cameras</h2>
   <p class="hint">The RTSP URL is write-only: it is never shown. Leave it empty to keep the stored one.</p>
   <div id="cameras"></div>

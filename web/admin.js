@@ -64,6 +64,34 @@ function usedBy(camera) {
   return alerts.filter((a) => a.camera === camera).map((a) => a.key);
 }
 
+function previewBox(a) {
+  return el("input", { type: "checkbox", checked: !!a.preview, onchange(ev) { a.preview = ev.target.checked; } });
+}
+
+// The wall page renders this draft; first_seen and the like are stand-ins for the server's.
+function postPreview() {
+  if (!alerts || !video) return;
+  const now = new Date(), iso = now.toISOString();
+  const list = alerts.filter((a) => a.preview).sort((x, y) => x.priority - y.priority).map((a) => {
+    const style = {};
+    for (const f of ["fg", "bg", "alt", "animation"]) if (a[f]) style[f] = a[f];
+    return {
+      key: a.key || "(new)", text: a.text, priority: Number(a.priority), camera: a.camera || null,
+      style: Object.keys(style).length ? style : null, unmapped: false, first_seen: iso, last_seen: iso,
+      expires_at: new Date(now.getTime() + (Number(a.duration) || 60) * 1000).toISOString(),
+    };
+  });
+  const w = $("preview").contentWindow;
+  if (w) w.postMessage({ type: "state", alerts: list, max_streams: Number(video.max_streams) || 2, server_time: iso }, location.origin);
+}
+
+function fitPreview() {
+  const w = $("two-screens").checked ? 3840 : 1920;
+  $("stage").classList.toggle("wide", w > 1920);
+  $("preview").style.width = w + "px";
+  $("preview").style.transform = `scale(${$("stage").clientWidth / w})`;
+}
+
 function renderAlerts() {
   const names = cameras.map((c) => c.name).filter(Boolean);
   $("alerts").replaceChildren(...alerts.map((a) => {
@@ -89,6 +117,7 @@ function renderAlerts() {
         field("Text", input(a, "text"), "grow"),
         del),
       el("div", { className: "row" },
+        el("label", { className: "inline" }, previewBox(a), "Preview"),
         field("Text color", input(a, "fg", { className: "short", placeholder: "#rrggbb" })),
         field("Background", input(a, "bg", { className: "short", placeholder: "#rrggbb" })),
         field("Alternate color", input(a, "alt", { className: "short", placeholder: "#rrggbb" })),
@@ -96,6 +125,7 @@ function renderAlerts() {
       el("div", { className: "row" }, url.box, hdr.box),
       warn);
   }));
+  postPreview();
 }
 
 function renderCameras() {
@@ -217,6 +247,11 @@ async function loadLog(more) {
   $("log-status").textContent = body.rows.length ? "" : "No matching events.";
 }
 
+new ResizeObserver(fitPreview).observe($("stage"));
+$("two-screens").addEventListener("change", fitPreview);
+$("preview").onload = postPreview;
+$("fullscreen").onclick = () => $("preview").requestFullscreen();
+for (const ev of ["input", "change"]) document.addEventListener(ev, postPreview);
 $("log-filter").onsubmit = (ev) => { ev.preventDefault(); loadLog(false); };
 $("log-older").onclick = () => loadLog(true);
 $("add-alert").onclick = () => {

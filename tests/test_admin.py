@@ -4,6 +4,7 @@ import stat
 
 import pytest
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 from protmon.app import app
 from protmon.config import ConfigError
@@ -135,6 +136,43 @@ def test_admin_page_forbidden_outside_network(cfg_path):
     with TestClient(app, client=("198.51.100.30", 1)) as c:
         assert c.get("/admin").status_code == 403
         assert c.get("/admin/web/admin.js").status_code == 403
+
+
+def test_preview_page_uses_admin_assets(client):
+    r = client.get("/admin/preview")
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-cache"
+    assert "/admin/web/app.js" in r.text and "/admin/web/style.css" in r.text and '"/web/' not in r.text
+    for name, kind in (("app.js", "javascript"), ("style.css", "css")):
+        r = client.get(f"/admin/web/{name}")
+        assert r.status_code == 200 and kind in r.headers["content-type"]
+
+
+def test_preview_forbidden_outside_network(cfg_path):
+    with TestClient(app, client=("198.51.100.30", 1)) as c:
+        assert c.get("/admin/preview").status_code == 403
+        assert c.get("/admin/go2rtc/video-stream.js").status_code == 403
+
+
+def test_go2rtc_proxy_only_serves_player_scripts(client):
+    for name in ("api", "config.json", "nope.js"):
+        assert client.get(f"/admin/go2rtc/{name}").status_code == 404
+
+
+def _closed(c, url):
+    with pytest.raises(WebSocketDisconnect) as e:
+        with c.websocket_connect(url):
+            pass
+    return e.value.code
+
+
+def test_go2rtc_ws_rejects_unknown_camera(client):
+    assert _closed(client, "/admin/go2rtc/api/ws?src=nope") == 1008
+    assert _closed(client, "/admin/go2rtc/api/ws") == 1008
+
+
+def test_go2rtc_ws_forbidden_outside_network(cfg_path):
+    with TestClient(app, client=("198.51.100.30", 1)) as c:
+        assert _closed(c, "/admin/go2rtc/api/ws?src=garage") == 1008
 
 
 def _log(tmp_path, name, recs, raw=()):

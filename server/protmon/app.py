@@ -103,6 +103,7 @@ async def lifespan(app):
 app = FastAPI(title="Protmon", lifespan=lifespan)
 app.include_router(admin.router)
 app.include_router(admin.pages)
+app.include_router(admin.ws_router)
 
 
 def local_only(conn: HTTPConnection):

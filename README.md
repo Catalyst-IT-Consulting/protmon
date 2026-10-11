@@ -373,6 +373,11 @@ never shown, and an empty field keeps the stored URL. A camera that an alert
 uses cannot be deleted. The webhook token is never shown; the page displays a
 placeholder for it. Save validates and applies the config without a restart.
 
+The Preview section embeds the real wall page and shows the alerts ticked
+"Preview", including unsaved edits, with live camera video proxied through the
+admin page. It keeps the wall's aspect ratio, offers a two-screen layout and a
+fullscreen button, and never raises an alert or writes an event.
+
 The Event log section reads the JSON-lines event log, including rotated files,
 newest first. Filter by alert key, event type and date range; webhook events show
 the source IP and request body. It is read-only: retention stays with logrotate.

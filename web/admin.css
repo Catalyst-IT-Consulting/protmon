@@ -24,3 +24,6 @@ footer { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: .75r
 table { width: 100%; border-collapse: collapse; background: #fff; font-size: .85rem; }
 th, td { padding: .25rem .5rem; border: 1px solid #ddd; text-align: left; vertical-align: top; }
 td.details { font-family: monospace; word-break: break-all; }
+#stage { position: relative; overflow: hidden; width: 100%; aspect-ratio: 16 / 9; background: #000; }
+#stage.wide { aspect-ratio: 32 / 9; }
+#preview { position: absolute; top: 0; left: 0; height: 1080px; border: 0; transform-origin: 0 0; }

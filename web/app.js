@@ -5,7 +5,8 @@ const els = new Map();
 let ws, retry, delay = 1000, live = false, commit, alerts = [];
 // two-screen layout: ?video=right puts the video on the right screen
 if (new URLSearchParams(location.search).get("video") === "right") document.body.dataset.side = "right";
-const GO2RTC = `${location.hostname}:1984`;
+const PREVIEW = location.pathname === "/admin/preview";  // admin embeds the page and posts alerts to it
+const GO2RTC = PREVIEW ? `${location.host}/admin/go2rtc` : `${location.hostname}:1984`;
 const SHOW_MS = 5000, RETRY_MS = 15000;  // note after 5s without frames, new player every 15s
 const tiles = new Map();  // camera -> {div, el, gen, t0, ok, pos}
 let player, fails = 0, cap = 2;
@@ -145,8 +146,8 @@ function problem() {
 
 function tick() {
   watch();
-  const bad = problem();
-  if (live && performance.now() - lastMsg > STALE_MS) drop(ws);
+  const bad = PREVIEW ? null : problem();
+  if (!PREVIEW && live && performance.now() - lastMsg > STALE_MS) drop(ws);
   if (bad) {
     const s = Math.round((performance.now() - lastMsg) / 1000);
     $("lost-why").textContent = bad;
@@ -162,4 +163,10 @@ function tick() {
 
 setInterval(tick, 1000);
 tick();
-connect();
+if (PREVIEW) {
+  addEventListener("message", e => {
+    if (e.source === parent && e.origin === location.origin && e.data && e.data.type === "state") {
+      onMsg({ ...e.data, commit: "preview" });
+    }
+  });
+} else connect();
