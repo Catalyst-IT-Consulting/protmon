@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response, WebSocket, WebSocketException
+from fastapi.responses import FileResponse
 from starlette.requests import HTTPConnection
 
 from . import config
@@ -91,9 +92,27 @@ def local_only(conn: HTTPConnection):
         raise HTTPException(404)
 
 
+def _now():
+    return datetime.now().astimezone().isoformat(timespec="seconds")
+
+
 def _state_doc():
-    return {"alerts": app.state.alerts.snapshot(), "commit": COMMIT,
-            "server_time": datetime.now().astimezone().isoformat(timespec="seconds")}
+    return {"alerts": app.state.alerts.snapshot(), "commit": COMMIT, "server_time": _now()}
+
+
+PAGE_FILES = {"app.js": "text/javascript", "style.css": "text/css"}
+
+
+@app.get("/", dependencies=[Depends(local_only)])
+def index():
+    return FileResponse(REPO / "web" / "index.html", headers={"cache-control": "no-cache"})
+
+
+@app.get("/web/{name}", dependencies=[Depends(local_only)])
+def asset(name: str):
+    if name not in PAGE_FILES:
+        raise HTTPException(404)
+    return FileResponse(REPO / "web" / name, media_type=PAGE_FILES[name], headers={"cache-control": "no-cache"})
 
 
 @app.get("/healthz", dependencies=[Depends(local_only)])
@@ -117,7 +136,7 @@ async def ws(ws: WebSocket):
             try:
                 await asyncio.wait_for(changed.wait(), PING_SECONDS)
             except asyncio.TimeoutError:
-                await ws.send_json({"type": "ping"})
+                await ws.send_json({"type": "ping", "server_time": _now()})
                 continue
             changed.clear()
             await ws.send_json({"type": "state", **_state_doc()})

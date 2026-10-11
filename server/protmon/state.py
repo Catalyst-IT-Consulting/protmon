@@ -100,6 +100,6 @@ class State:
     def snapshot(self):
         rows = sorted(self.alerts.values(), key=lambda a: (a["priority"], a["first_seen"]))
         return [{"key": a["key"], "text": a["text"], "priority": a["priority"], "camera": a["camera"],
-                 "first_seen": _iso(a["first_seen"]), "last_seen": _iso(a["last_seen"]),
+                 "unmapped": a.get("unmapped", False), "first_seen": _iso(a["first_seen"]), "last_seen": _iso(a["last_seen"]),
                  "expires_at": None if a["expires_wall"] is None else _iso(a["expires_wall"])}
                 for a in rows]

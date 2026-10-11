@@ -104,3 +104,34 @@ def test_ws_initial_state_then_webhook_update(cfg_path):
         post(c, "garage-motion")
         update = ws.receive_json()
         assert update["type"] == "state" and [a["key"] for a in update["alerts"]] == ["garage-motion"]
+
+
+def test_page_and_assets_served_locally(cfg_path):
+    with TestClient(app, client=CONSOLE) as c:
+        assert "text/html" in (r := c.get("/")).headers["content-type"] and "<script" in r.text
+        assert "javascript" in c.get("/web/app.js").headers["content-type"]
+        assert "text/css" in c.get("/web/style.css").headers["content-type"]
+        assert c.get("/web/index.html").status_code == 404
+        assert c.get("/web/..%2Fserver%2Fprotmon%2Fapp.py").status_code == 404
+
+
+@pytest.mark.parametrize("path", ["/", "/web/app.js", "/web/style.css"])
+def test_page_hidden_from_lan(cfg_path, path):
+    with TestClient(app, client=("198.51.100.30", 1)) as c:
+        assert c.get(path).status_code == 404
+
+
+def test_unmapped_flag_in_state(cfg_path):
+    with TestClient(app, client=CONSOLE) as c:
+        post(c, "garage-motion")
+        post(c, "nope")
+        flags = {a["key"]: a["unmapped"] for a in c.get("/api/state").json()["alerts"]}
+    assert flags == {"garage-motion": False, "nope": True}
+
+
+def test_ws_ping_carries_server_time(cfg_path, monkeypatch):
+    monkeypatch.setattr("protmon.app.PING_SECONDS", 0.05)
+    with TestClient(app, client=CONSOLE) as c, c.websocket_connect("/ws") as ws:
+        ws.receive_json()
+        ping = ws.receive_json()
+    assert ping["type"] == "ping" and ping["server_time"][-6] in "+-"

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protmon</title>
+<link rel="stylesheet" href="/web/style.css">
+</head>
+<body data-view="lost">
+<main id="alerts"></main>
+<section id="idle">
+  <div id="idle-box">
+    <div id="clock"></div>
+    <div id="status">All clear / system OK</div>
+    <div id="commit"></div>
+  </div>
+</section>
+<section id="lost">
+  <div class="hazard"></div>
+  <div id="lost-box">
+    <div id="lost-title">CONNECTION LOST</div>
+    <div id="lost-why"></div>
+    <div id="lost-last"></div>
+  </div>
+  <div class="hazard"></div>
+</section>
+<script src="/web/app.js"></script>
+</body>
+</html>
