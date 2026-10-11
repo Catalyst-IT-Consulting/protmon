@@ -40,7 +40,7 @@ jobs:
       - name: No camera credentials outside the example
         run: |
           if git grep -nE 'rtsp://[^[:space:]"]*:[^[:space:]"@]*@' -- \
-               ':!config.example.json' ':!docs/' ':!README.md' ':!.github/'; then
+               ':!config.example.json' ':!README.md' ':!.github/'; then
             echo "::error::Looks like real RTSP credentials are committed. They belong in /etc/protmon/config.json on the Pi only."
             exit 1
           fi

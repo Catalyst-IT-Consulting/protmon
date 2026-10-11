@@ -233,7 +233,7 @@ def _ev(ts, event="raised", key="k1", **kw):
 def logs(cfg_path, tmp_path):
     _log(tmp_path, "events.jsonl.2.gz", [_ev("2026-01-01T10:00:00+00:00")])
     _log(tmp_path, "events.jsonl.1", [_ev("2026-01-02T10:00:00+00:00", "expired"),
-                                      _ev("2026-01-02T11:00:00+00:00", key="k2", source_ip="10.0.0.5", body="hi")],
+                                      _ev("2026-01-02T11:00:00+00:00", key="k2", source_ip="198.51.100.5", body="hi")],
          raw=["not json\n", "\n"])
     _log(tmp_path, "events.jsonl", [_ev("2026-01-03T10:00:00+00:00", "rejected-auth", key=None)])
 
@@ -247,7 +247,7 @@ def events_of(c, **q):
 def test_events_newest_first_across_files(client, logs):
     got = events_of(client, since="2026-01-01")["events"]
     assert [e["ts"][:13] for e in got] == ["2026-01-03T10", "2026-01-02T11", "2026-01-02T10", "2026-01-01T10"]
-    assert got[1]["source_ip"] == "10.0.0.5" and got[1]["body"] == "hi"
+    assert got[1]["source_ip"] == "198.51.100.5" and got[1]["body"] == "hi"
 
 
 def test_events_filters(client, logs):

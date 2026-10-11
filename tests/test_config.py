@@ -187,7 +187,7 @@ def test_protect_defaults(tmp_path):
     ({"address": "h", "failures": -1}, "failures"),
     ({"address": "h", "failures": "3"}, "failures"),
     ({"address": "h", "port": 443}, "unknown field.*port"),
-    ("10.0.0.1", "must be an object"),
+    ("198.51.100.1", "must be an object"),
 ])
 def test_protect_rejections(tmp_path, p, msg):
     with pytest.raises(ConfigError, match=msg):

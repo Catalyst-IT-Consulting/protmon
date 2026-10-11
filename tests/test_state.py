@@ -27,19 +27,19 @@ def env(cfg_path, events):
 
 def test_single_trigger(env):
     st, _, events = env
-    assert st.trigger("m", TIMED, "10.0.0.5") == "received"
+    assert st.trigger("m", TIMED, "198.51.100.5") == "received"
     (a,) = st.snapshot()
     assert (a["key"], a["text"], a["priority"], a["camera"]) == ("m", "Motion", 3, "garage")
     assert a["expires_at"] and a["first_seen"] == a["last_seen"]
-    assert events() == [{**events()[0], "event": "received", "key": "m", "priority": 3, "source_ip": "10.0.0.5"}]
+    assert events() == [{**events()[0], "event": "received", "key": "m", "priority": 3, "source_ip": "198.51.100.5"}]
 
 
 def test_repeat_refreshes_without_duplicate(env):
     st, clock, events = env
-    st.trigger("m", TIMED, "10.0.0.5")
+    st.trigger("m", TIMED, "198.51.100.5")
     first = st.snapshot()[0]
     clock.t = 20
-    assert st.trigger("m", TIMED, "10.0.0.6") == "refreshed"
+    assert st.trigger("m", TIMED, "198.51.100.6") == "refreshed"
     snap = st.snapshot()
     assert len(snap) == 1
     assert snap[0]["first_seen"] == first["first_seen"]
@@ -48,12 +48,12 @@ def test_repeat_refreshes_without_duplicate(env):
     clock.t = 40  # past the original deadline, inside the refreshed one
     assert st.expire_due() == [] and len(st.snapshot()) == 1
     assert [e["event"] for e in events()] == ["received", "refreshed"]
-    assert events()[1]["source_ip"] == "10.0.0.6"
+    assert events()[1]["source_ip"] == "198.51.100.6"
 
 
 def test_timed_expiry(env):
     st, clock, events = env
-    st.trigger("m", TIMED, "10.0.0.5")
+    st.trigger("m", TIMED, "198.51.100.5")
     clock.t = 29
     assert st.expire_due() == []
     clock.t = 30
@@ -64,9 +64,9 @@ def test_timed_expiry(env):
 
 def test_priority1_expires_and_retrigger_restarts(env):
     st, clock, events = env
-    st.trigger("p", LONG, "10.0.0.5")
+    st.trigger("p", LONG, "198.51.100.5")
     clock.t = 1000
-    st.trigger("p", LONG, "10.0.0.5")
+    st.trigger("p", LONG, "198.51.100.5")
     clock.t = 2799
     assert st.expire_due() == []
     clock.t = 2800
@@ -75,8 +75,8 @@ def test_priority1_expires_and_retrigger_restarts(env):
 
 def test_unmapped_sorts_first_and_expires_after_system_duration(env):
     st, clock, events = env
-    st.trigger("m", TIMED, "10.0.0.5")
-    st.trigger("mystery", None, "10.0.0.9")
+    st.trigger("m", TIMED, "198.51.100.5")
+    st.trigger("mystery", None, "198.51.100.9")
     snap = st.snapshot()
     assert [a["key"] for a in snap] == ["mystery", "m"]
     assert snap[0]["text"] == "Unmapped alert: mystery" and snap[0]["priority"] == 1
@@ -91,7 +91,7 @@ def test_unmapped_sorts_first_and_expires_after_system_duration(env):
 
 def test_log_is_one_json_object_per_line(env, tmp_path):
     st, _, _ = env
-    st.trigger("m", TIMED, "10.0.0.5")
+    st.trigger("m", TIMED, "198.51.100.5")
     lines = (tmp_path / "events.jsonl").read_text().splitlines()
     assert len(lines) == 1 and json.loads(lines[0])["ts"]
 
@@ -106,7 +106,7 @@ def mk(env, tmp_path):
 def test_long_alert_survives_restart(mk):
     new, clock, _, path = mk
     a = new()
-    a.trigger("p", LONG, "10.0.0.5")
+    a.trigger("p", LONG, "198.51.100.5")
     clock.t += 600
     b = new()
     b.restore()
@@ -118,8 +118,8 @@ def test_long_alert_survives_restart(mk):
 def test_timed_remaining_recomputed_and_outage_expiry_logged(mk):
     new, clock, events, path = mk
     a = new()
-    a.trigger("m", TIMED, "10.0.0.5")
-    a.trigger("x", {**TIMED, "duration": 5}, "10.0.0.5")
+    a.trigger("m", TIMED, "198.51.100.5")
+    a.trigger("x", {**TIMED, "duration": 5}, "198.51.100.5")
     clock.t += 10
     b = new()
     b.restore()
@@ -155,10 +155,10 @@ def test_missing_file_is_clean_start(mk):
 def test_save_is_atomic_and_failure_does_not_raise(mk, tmp_path):
     new, _, events, path = mk
     a = new()
-    a.trigger("p", LONG, "10.0.0.5")
+    a.trigger("p", LONG, "198.51.100.5")
     assert sorted(p.name for p in tmp_path.iterdir() if p.name.startswith("active")) == ["active.json"]
     a.path = str(tmp_path / "nodir" / "active.json")
-    a.trigger("q", LONG, "10.0.0.5")
+    a.trigger("q", LONG, "198.51.100.5")
     assert any(e["event"] == "state-save-failed" for e in events())
 
 
@@ -166,7 +166,7 @@ def test_style_and_sound_in_snapshot_and_survive_restart(mk):
     new, _, _, path = mk
     st, snd = {"fg": "#fff", "animation": "invert"}, {"tone": "chime", "plays": 2}
     a = new()
-    a.trigger("p", {**LONG, "style": st, "sound": snd}, "10.0.0.5")
+    a.trigger("p", {**LONG, "style": st, "sound": snd}, "198.51.100.5")
     assert a.snapshot()[0]["style"] == st and a.snapshot()[0]["sound"] == snd
     b = new()
     b.restore()
