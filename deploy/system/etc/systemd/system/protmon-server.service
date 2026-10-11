@@ -8,6 +8,7 @@ Wants=network-online.target
 EnvironmentFile=-/etc/protmon/secrets.env
 WorkingDirectory=/opt/protmon/server
 ExecStart=/var/lib/protmon/venv/bin/python -m protmon
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=2
 # Cheap hardening; the dirs are created by the deployer, so just allow writes.

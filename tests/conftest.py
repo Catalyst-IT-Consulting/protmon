@@ -1,0 +1,29 @@
+import json
+from pathlib import Path
+
+import pytest
+
+GOOD = {
+    "cameras": {"garage": "rtsp://u:p@192.0.2.21/s"},
+    "alerts": {
+        "garage-motion": {"text": "Garage Motion", "priority": 3, "camera": "garage", "duration": 30},
+        "panic": {"text": "Panic", "priority": 1, "camera": None, "duration": None},
+    },
+}
+
+
+@pytest.fixture
+def cfg_path(tmp_path, monkeypatch):
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps(GOOD))
+    monkeypatch.setenv("PROTMON_CONFIG", str(p))
+    monkeypatch.setenv("PROTMON_EVENT_LOG", str(tmp_path / "events.jsonl"))
+    return p
+
+
+@pytest.fixture
+def events(tmp_path):
+    def read():
+        f = Path(tmp_path / "events.jsonl")
+        return [json.loads(line) for line in f.read_text().splitlines()] if f.exists() else []
+    return read

@@ -186,6 +186,9 @@ Config validation fails loudly and refuses to start on an unknown camera
 reference, a duplicate key, or a bad type. It never silently skips an entry,
 because a skipped entry is a sensor that looks configured and is not.
 
+`systemctl reload protmon-server` re-reads the file without a restart. A reload
+that fails validation is logged and the previous config stays in effect.
+
 ## Repository layout
 
 ```

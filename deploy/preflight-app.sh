@@ -6,4 +6,8 @@ cd "$(dirname "$0")/.."
 
 python3 -m compileall -q server
 
-# Live-config validation against the incoming code hooks in here.
+# Validate the live config against the incoming code, when there is one.
+cfg="${PROTMON_CONFIG:-/etc/protmon/config.json}"
+if [ -f "$cfg" ]; then
+  PYTHONPATH=server python3 -m protmon.config "$cfg"
+fi
