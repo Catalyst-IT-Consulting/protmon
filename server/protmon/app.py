@@ -118,9 +118,13 @@ def _now():
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
+def _clock_synced():
+    return Path(os.environ.get("PROTMON_TIMESYNC_FLAG", "/run/systemd/timesync/synchronized")).exists()
+
+
 def _state_doc():
     return {"alerts": app.state.alerts.snapshot(), "commit": COMMIT, "server_time": _now(),
-            "max_streams": app.state.config["video"]["max_streams"]}
+            "clock_synced": _clock_synced(), "max_streams": app.state.config["video"]["max_streams"]}
 
 
 PAGE_FILES = {"app.js": "text/javascript", "style.css": "text/css"}
@@ -159,7 +163,7 @@ async def ws(ws: WebSocket):
             try:
                 await asyncio.wait_for(changed.wait(), PING_SECONDS)
             except asyncio.TimeoutError:
-                await ws.send_json({"type": "ping", "server_time": _now()})
+                await ws.send_json({"type": "ping", "server_time": _now(), "clock_synced": _clock_synced()})
                 continue
             changed.clear()
             await ws.send_json({"type": "state", **_state_doc()})

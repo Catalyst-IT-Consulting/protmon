@@ -119,6 +119,7 @@ function onMsg(m) {
   lostAt = 0;
   live = true;
   delay = 1000;
+  if (m.clock_synced !== undefined) $("sync").hidden = PREVIEW || m.clock_synced;
   if (m.server_time) srv = { ms: Date.parse(m.server_time), at: lastMsg };
   if (m.type !== "state") return;
   if (commit && m.commit !== commit) return location.reload();

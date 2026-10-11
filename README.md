@@ -411,7 +411,7 @@ the source IP and request body. It is read-only: retention stays with logrotate.
 ## State feed
 
 Localhost only. `GET /api/state` returns
-`{"alerts": [...], "commit": "<sha>", "server_time": "<ISO-8601>", "max_streams": 2}`, alerts
+`{"alerts": [...], "commit": "<sha>", "server_time": "<ISO-8601>", "clock_synced": true, "max_streams": 2}`, alerts
 sorted by priority then first seen. Each alert carries `key`, `text`,
 `priority`, `camera` (the stream name, never a URL), `style` (or `null`), `first_seen`, `last_seen`
 and `expires_at`.
@@ -420,6 +420,12 @@ and `expires_at`.
 ..., "server_time": ...}` on connect and after every change (always the full
 state, so a reconnect is a resync), plus `{"type": "ping"}` every 15 seconds so
 the page can tell a dead socket from a quiet one.
+
+The state and ping messages also carry `clock_synced`, true once
+systemd-timesyncd has synced since boot (it checks the flag file
+`/run/systemd/timesync/synchronized`, overridable with `PROTMON_TIMESYNC_FLAG`).
+While it is false the idle screen shows an amber "Clock not synced" note beside
+the time and date.
 
 `GET /healthz` returns `{"status": "ok", "commit": "<sha>"}` once the config
 and secrets are loaded and the server is accepting requests.

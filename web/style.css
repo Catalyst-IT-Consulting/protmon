@@ -83,6 +83,8 @@ body[data-view="alerts"][data-video] #video { display: grid; }
 #date { font-size: 8vh; margin-top: 2vh; }
 #status { font-size: 6vh; margin-top: 4vh; }
 #commit { position: absolute; right: 1.5vw; bottom: 1vh; font-size: 1.8vh; font-family: monospace; color: #38443a; }
+#sync { position: absolute; right: 1.5vw; bottom: 4vh; font-size: 3vh; color: #b8860b; }
+#sync[hidden] { display: none; }
 @keyframes drift {
   0% { translate: -14px -10px; } 25% { translate: 14px -10px; } 50% { translate: 14px 10px; }
   75% { translate: -14px 10px; } 100% { translate: -14px -10px; }

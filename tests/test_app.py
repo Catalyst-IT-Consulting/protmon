@@ -132,3 +132,15 @@ def test_go2rtc_restart_failure_is_logged_not_raised(cfg_path, events, monkeypat
         cfg_path.write_text(json.dumps(new))
         assert appmod.reload_config(app) is True
     assert "go2rtc-restart-failed" in [e["event"] for e in events()]
+
+
+def test_clock_synced_follows_flag_file(cfg_path, tmp_path, monkeypatch):
+    flag = tmp_path / "synchronized"
+    monkeypatch.setenv("PROTMON_TIMESYNC_FLAG", str(flag))
+    with TestClient(app, client=LOCAL) as client:
+        assert client.get("/api/state").json()["clock_synced"] is False
+        with client.websocket_connect("/ws") as ws:
+            assert ws.receive_json()["clock_synced"] is False
+        flag.touch()
+        assert client.get("/api/state").json()["clock_synced"] is True
+        assert appmod._clock_synced() is True
