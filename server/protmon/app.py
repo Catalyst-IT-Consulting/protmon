@@ -45,9 +45,22 @@ def reload_config(app) -> bool:
     except config.ConfigError as e:
         app.state.log.write("config-reload-failed", error=str(e))
         return False
+    cameras_changed = cfg["cameras"] != app.state.config["cameras"]
     app.state.config = cfg
     app.state.log.write("config-reloaded", alerts=len(cfg["alerts"]), cameras=len(cfg["cameras"]))
+    if cameras_changed:
+        _restart_go2rtc(app)
     return True
+
+
+def _restart_go2rtc(app):
+    """go2rtc regenerates its stream config on start, so a restart applies new cameras."""
+    try:
+        subprocess.run(["systemctl", "try-restart", "--no-block", "protmon-go2rtc.service"],
+                       check=True, capture_output=True, timeout=10)
+        app.state.log.write("go2rtc-restarted")
+    except (OSError, subprocess.SubprocessError) as e:
+        app.state.log.write("go2rtc-restart-failed", error=str(e))
 
 
 async def _sweep(state):

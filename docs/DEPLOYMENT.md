@@ -51,6 +51,8 @@ Nothing operational is mixed in with the code the deployer overwrites.
 | `/etc/protmon/deploy.env` | you, by hand | this host's deploy settings |
 | `/etc/protmon/HOLD` | you, by hand | exists means deploys are paused |
 | `/var/lib/protmon` | the app and deployer | active alerts, deployed commit, manifests |
+| `/usr/local/bin/go2rtc` | the deployer | pinned go2rtc binary, version and checksum in `deploy/go2rtc/pin.env` |
+| `/run/protmon-go2rtc/go2rtc.yaml` | go2rtc unit | generated stream config, mode 0600, rebuilt on every start |
 | `/var/log/protmon` | the app and deployer | event log and deploy log, rotated |
 
 A deploy never touches the first group. Config and credentials cannot be
@@ -158,6 +160,26 @@ off" and "CEC" energy options if it still sleeps.
 
 On-site checks: power cycle the Pi and confirm it reaches the idle screen
 unattended, then leave it 24 hours and confirm nothing dims or blanks.
+
+## go2rtc
+
+`protmon-go2rtc.service` runs go2rtc as a transient unprivileged user and turns
+the RTSP cameras into WebRTC for the kiosk browser. Everything listens on
+`127.0.0.1` only: the API and web UI on 1984, WebRTC media on 8555 (TCP and
+UDP). RTSP and SRTP listeners are off and no STUN server is configured. Streams
+are named after the `cameras` keys and open only while a client is watching.
+
+Before each start the unit generates its config from `/etc/protmon/config.json`
+(the same validator the server uses) into `/run/protmon-go2rtc/go2rtc.yaml`,
+mode 0600. The server restarts the unit on a config reload only when the
+`cameras` section changed. The deployer installs the binary named in
+`deploy/go2rtc/pin.env` and fails the deploy if its SHA-256 does not match.
+
+```bash
+sudo ss -ltnup | grep go2rtc        # every line must show 127.0.0.1
+curl -s http://127.0.0.1:1984/api/streams
+journalctl -u protmon-go2rtc -f
+```
 
 ## First-time setup
 

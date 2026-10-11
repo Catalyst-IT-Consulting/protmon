@@ -1,0 +1,25 @@
+[Unit]
+Description=Protmon: go2rtc (RTSP to WebRTC, localhost only)
+Documentation=https://github.com/Catalyst-IT-Consulting/protmon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+DynamicUser=yes
+# Root reads the real config; the service user only sees a copy of it.
+LoadCredential=config.json:/etc/protmon/config.json
+RuntimeDirectory=protmon-go2rtc
+Environment=PYTHONPATH=/opt/protmon/server PYTHONDONTWRITEBYTECODE=1
+ExecStartPre=/usr/bin/python3 -m protmon.go2rtc %d/config.json /run/protmon-go2rtc/go2rtc.yaml
+ExecStart=/usr/local/bin/go2rtc -config /run/protmon-go2rtc/go2rtc.yaml
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

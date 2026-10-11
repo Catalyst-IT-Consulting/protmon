@@ -225,8 +225,11 @@ still fire, so a quiet screen is not a guarantee that Protect is alerting.
 
 Alerts reference cameras **by name**, which is what makes the eventual move to
 UniFi cameras a URL change under `cameras` and nothing more. Use each camera's
-low-resolution H.264 substream: WebRTC support for H.265 is unreliable, and a
-wall display does not need 4K.
+low-resolution H.264 substream: WebRTC support for H.265 is unreliable in
+Chromium (it would need a transcode), and a wall display does not need 4K.
+Set the substream to 640x360 or 720p at 10 to 15 fps. The `cameras` keys are
+the go2rtc stream names, so rename a camera by changing its key and every
+alert that references it.
 
 Config validation fails loudly and refuses to start on an unknown camera
 reference, a duplicate key, or a bad type. It never silently skips an entry,

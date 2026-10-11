@@ -102,3 +102,33 @@ def test_alert_restored_after_restart(cfg_path, events):
     with TestClient(app, client=LOCAL) as client:
         assert [a["key"] for a in client.get("/api/state").json()["alerts"]] == ["panic"]
     assert "restored" in [e["event"] for e in events()]
+
+
+def test_reload_restarts_go2rtc_only_when_cameras_change(cfg_path, events, monkeypatch):
+    calls = []
+    monkeypatch.setattr(appmod.subprocess, "run", lambda cmd, **kw: calls.append(cmd))
+    with TestClient(app, client=LOCAL):
+        new = json.loads(cfg_path.read_text())
+        new["alerts"]["extra"] = {"text": "Extra", "priority": 2, "duration": 60}
+        cfg_path.write_text(json.dumps(new))
+        assert appmod.reload_config(app) is True
+        assert calls == []
+
+        new["cameras"]["lobby"] = "rtsp://192.0.2.22/s"
+        cfg_path.write_text(json.dumps(new))
+        assert appmod.reload_config(app) is True
+        assert len(calls) == 1 and calls[0][1:2] == ["try-restart"] and "protmon-go2rtc.service" in calls[0]
+    assert "go2rtc-restarted" in [e["event"] for e in events()]
+
+
+def test_go2rtc_restart_failure_is_logged_not_raised(cfg_path, events, monkeypatch):
+    def boom(cmd, **kw):
+        raise OSError("no systemctl")
+    monkeypatch.setattr(appmod.subprocess, "run", boom)
+    with TestClient(app, client=LOCAL):
+        new = json.loads(cfg_path.read_text())
+        new["cameras"] = {}
+        new["alerts"] = {}
+        cfg_path.write_text(json.dumps(new))
+        assert appmod.reload_config(app) is True
+    assert "go2rtc-restart-failed" in [e["event"] for e in events()]
