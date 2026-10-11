@@ -164,9 +164,18 @@ edit; `config.json` is gitignored because it holds camera credentials.
 | Field | Meaning |
 | --- | --- |
 | `text` | What the banner says. Written for someone reading it across the room |
-| `priority` | Lower is more urgent. 1 is silent-alarm / life-safety class. Tiers are still an open decision |
+| `priority` | `1`, `2` or `3`; lower is more urgent. See the tiers below |
 | `camera` | A key into `cameras`, or `null` for text-only (a room with no camera) |
 | `duration` | Seconds until auto-expiry, or `null` for sticky until acknowledged |
+
+| Tier | Class | Default lifetime | Flash | Sound |
+| --- | --- | --- | --- | --- |
+| 1 | Silent alarm, life-safety | Sticky until acknowledged | Hardest | Yes, if audio is adopted |
+| 2 | Doors, perimeter | Sticky or long | Moderate | No |
+| 3 | Motion, informational | Short auto-expiry | Gentle | No |
+
+A tier-1 alert must be sticky: config validation rejects a tier-1 alert with a
+non-null `duration`.
 
 Alerts reference cameras **by name**, which is what makes the eventual move to
 UniFi cameras a URL change under `cameras` and nothing more. Use each camera's
