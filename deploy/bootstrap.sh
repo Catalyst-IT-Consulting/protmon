@@ -39,7 +39,7 @@ say() { printf '\n==> %s\n' "$*"; }
 
 say "Installing packages"
 apt-get update -qq
-apt-get install -y -qq git curl python3 ca-certificates logrotate
+apt-get install -y -qq git curl python3 python3-venv ca-certificates logrotate
 
 say "Creating directories"
 install -d -m 0755 "$ETC_DIR" "$STATE_DIR" "$LOG_DIR"

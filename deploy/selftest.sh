@@ -46,6 +46,7 @@ chmod +x "$T/bin/systemctl"
 printf 'protmon-server.service\nprotmon-go2rtc.service\nprotmon-kiosk.service\n' >"$T/units.txt"
 
 export SELFTEST_T=$T
+export PROTMON_SKIP_VENV=1
 export DESTDIR=$T/root
 export SYSTEMCTL=$T/bin/systemctl
 export DEPLOY_ENV=$T/deploy.env

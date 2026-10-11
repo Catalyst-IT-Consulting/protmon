@@ -123,7 +123,7 @@ when the server gets built, or the safety interlocks degrade to nothing.
 | `GET /api/state` returning `{"alerts": [...]}` | the live-alert gate. The page consumes this too |
 | config read from `/etc/protmon/config.json` | keeps credentials out of the deployed tree |
 | state in `/var/lib/protmon`, logs in `/var/log/protmon/*.jsonl` | survives `git reset --hard`, and logrotate already covers that glob |
-| `deploy/postfetch.sh`, if dependencies need installing | run after fetch, before restart. Non-zero fails the deploy and triggers rollback |
+| `deploy/postfetch.sh`, if dependencies need installing | run after fetch, before restart. Non-zero fails the deploy and triggers rollback. It maintains the virtualenv at `/var/lib/protmon/venv`, reinstalling only when `requirements.txt` changes |
 | `deploy/preflight-app.sh`, for stack-specific validation | runs in the scratch extract. The place to validate the live config against incoming code |
 | the running commit shown on the idle screen | lets you read the deployed version off the wall, or off a photo of it |
 

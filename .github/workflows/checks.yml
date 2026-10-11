@@ -28,6 +28,15 @@ jobs:
       - name: Deployer self-test
         run: ./deploy/selftest.sh
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Tests
+        run: |
+          pip install -r requirements-dev.txt
+          pytest
+
       - name: No camera credentials outside the example
         run: |
           if git grep -nE 'rtsp://[^[:space:]"]*:[^[:space:]"@]*@' -- \
