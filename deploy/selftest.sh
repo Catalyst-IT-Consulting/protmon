@@ -36,6 +36,7 @@ case $1 in
   enable) printf '%s\n' "$2" >>"$SELFTEST_T/enabled.txt" ;;
   disable) sed -i "/^$2\$/d" "$SELFTEST_T/enabled.txt" 2>/dev/null || true ;;
   restart)
+    case $2 in protmon-firewall.service|systemd-journald.service) exit 0 ;; esac
     if [ -e "$SELFTEST_T/fail_next" ]; then
       rm -f "$SELFTEST_T/fail_next" "$SELFTEST_T/health"
     else
@@ -288,6 +289,73 @@ hs
 assert "added package installed" grep -q '^apt-get install -y -qq grim$' "$T/hs.log"
 assert "existing kiosk user gets groups" grep -q '^usermod -aG video,render,input protmon-kiosk' "$T/hs.log"
 refute "existing kiosk user not recreated" grep -q '^useradd' "$T/hs.log"
+
+case_ "14. firewall renders per address family and refuses to lock out SSH; journald restarts only on change"
+cat >"$T/stubs/nft" <<'STUB'
+#!/bin/sh
+printf '%s\n' "$*" >>"$SELFTEST_T/nft.log"
+STUB
+chmod +x "$T/stubs/nft"
+fw() { # fw <secrets file> [args]: rc on stdout, output in $T/fw.out
+  local f=$1
+  shift
+  : >"$T/nft.log"
+  set +e
+  PROTMON_SECRETS=$f NFT=$T/stubs/nft "$REPO_ROOT/deploy/system/usr/local/bin/protmon-firewall" "$@" >"$T/fw.out" 2>&1
+  local rc=$?
+  set -e
+  printf '%s' "$rc"
+}
+printf 'PROTMON_TOKEN=x\nPROTMON_ALLOWED_IPS=192.0.2.10\nPROTMON_ADMIN_NETWORKS=198.51.100.0/24\n' >"$T/s4.env"
+check "v4 render exit 0" "$(fw "$T/s4.env" --print)" "0"
+assert "established accepted first" grep -qx '    ct state established,related accept' "$T/fw.out"
+assert "ssh from admin network" grep -qx '    ip saddr 198.51.100.0/24 tcp dport 22 accept' "$T/fw.out"
+assert "webhook from the console" grep -qx '    ip saddr 192.0.2.10 tcp dport 8080 accept' "$T/fw.out"
+assert "admin network reaches the admin port" grep -qx '    ip saddr 198.51.100.0/24 tcp dport 8080 accept' "$T/fw.out"
+refute "no v6 rules for v4 config" grep -q ip6 "$T/fw.out"
+assert "default drop" grep -q 'policy drop' "$T/fw.out"
+refute "console gets no ssh" grep -q '192.0.2.10 tcp dport 22' "$T/fw.out"
+printf 'PROTMON_ALLOWED_IPS="192.0.2.10, 2001:db8::10"\nPROTMON_ADMIN_NETWORKS=198.51.100.60,2001:db8:1::/64\n' >"$T/s6.env"
+check "mixed render exit 0" "$(fw "$T/s6.env" --print)" "0"
+assert "v4 admin host" grep -qx '    ip saddr 198.51.100.60 tcp dport 22 accept' "$T/fw.out"
+assert "v6 admin network" grep -qx '    ip6 saddr 2001:db8:1::/64 tcp dport 22 accept' "$T/fw.out"
+assert "v6 console" grep -qx '    ip6 saddr 2001:db8::10 tcp dport 8080 accept' "$T/fw.out"
+check "apply exit 0" "$(fw "$T/s6.env")" "0"
+assert "validated, then applied" grep -qx -e "-c -f .*" "$T/nft.log"
+check "two nft calls" "$(wc -l <"$T/nft.log")" "2"
+printf 'PROTMON_ALLOWED_IPS=192.0.2.10\nPROTMON_ADMIN_NETWORKS=\n' >"$T/se.env"
+check "empty admin networks refused" "$(fw "$T/se.env")" "1"
+check "nothing applied" "$(wc -c <"$T/nft.log")" "0"
+printf 'PROTMON_ALLOWED_IPS=192.0.2.10\n' >"$T/sm.env"
+check "missing admin networks refused" "$(fw "$T/sm.env")" "1"
+check "missing file refused" "$(fw "$T/nope.env")" "1"
+printf 'PROTMON_ALLOWED_IPS=192.0.2.10\nPROTMON_ADMIN_NETWORKS=10.0.0.0/24,evil;rule\n' >"$T/sb.env"
+check "bad value refused" "$(fw "$T/sb.env")" "1"
+check "nothing applied on bad value" "$(wc -c <"$T/nft.log")" "0"
+printf 'PROTMON_ALLOWED_IPS=999.1.1\nPROTMON_ADMIN_NETWORKS=10.0.0.0/24\n' >"$T/sb2.env"
+check "bad allowed ip refused" "$(fw "$T/sb2.env")" "1"
+printf '#!/bin/sh\nexit 1\n' >"$T/stubs/nft-bad"
+chmod +x "$T/stubs/nft-bad"
+set +e
+PROTMON_SECRETS=$T/s4.env NFT=$T/stubs/nft-bad "$REPO_ROOT/deploy/system/usr/local/bin/protmon-firewall" >/dev/null 2>&1
+rc=$?
+set -e
+check "nft -c failure refused" "$rc" "1"
+
+IS=$T/is
+mkdir -p "$IS"
+isys() {
+  : >"$T/systemctl.log"
+  APP_DIR=$REPO_ROOT DESTDIR=$IS STATE_DIR=$IS/state SYSTEMCTL=$T/bin/systemctl "$REPO_ROOT/deploy/install-system.sh" >/dev/null 2>&1
+}
+isys
+assert "journald drop-in installed" [ -f "$IS/etc/systemd/journald.conf.d/protmon.conf" ]
+assert "journald restarted on change" grep -q '^restart systemd-journald.service' "$T/systemctl.log"
+assert "firewall applied" grep -q '^restart protmon-firewall.service' "$T/systemctl.log"
+assert "firewall unit enabled" grep -qx protmon-firewall.service "$T/enabled.txt"
+isys
+refute "journald untouched when unchanged" grep -q 'systemd-journald' "$T/systemctl.log"
+assert "firewall re-applied every run" grep -q '^restart protmon-firewall.service' "$T/systemctl.log"
 
 printf '\n%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" = 0 ]

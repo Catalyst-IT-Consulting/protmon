@@ -87,7 +87,7 @@ Pi. Everything below is applied by the deployer, so a change is a push.
 | --- | --- | --- |
 | apt packages | `deploy/packages.txt` | `host-setup.sh`, from `postfetch.sh`. Installs only what is missing, and only when the file changed |
 | the `protmon-kiosk` user and its groups | `deploy/host-setup.sh` | same, every deploy |
-| systemd units, logrotate, udev rules | `deploy/system/` | `install-system.sh` |
+| systemd units, logrotate, udev rules, journald limits, firewall | `deploy/system/` | `install-system.sh` |
 | `video=` mode per HDMI port in `cmdline.txt` | `deploy/boot/cmdline.args` | `boot-config.sh`, from `install-system.sh` |
 | `config.txt` settings | `deploy/boot/config.txt`, kept between `# BEGIN protmon` and `# END protmon` | `boot-config.sh` |
 | go2rtc binary | `deploy/go2rtc/pin.env` | `postfetch.sh` |
@@ -106,7 +106,46 @@ Deliberately not tracked:
 - Network addressing: a DHCP reservation on the router, not a Pi setting.
 - Debug tools installed by hand (`gdb`, `htop`, `strace` and the like): not
   needed to run the display. The `grim` screenshot tool is tracked.
-- Stock Raspberry Pi OS settings such as volatile journald storage and time sync.
+- Stock Raspberry Pi OS settings such as time sync.
+
+## Firewall
+
+`protmon-firewall` renders an nftables ruleset from `/etc/protmon/secrets.env`
+and applies it at boot (`protmon-firewall.service`) and on every deploy. It owns
+one table, `inet protmon`, and replaces it in a single atomic transaction, so
+other tables are untouched and an open SSH session is never dropped. Inbound
+policy is drop; outbound is unrestricted.
+
+| Allowed inbound | From |
+| --- | --- |
+| tcp 8080 (webhook and `/admin`) | `PROTMON_ALLOWED_IPS` and `PROTMON_ADMIN_NETWORKS` |
+| tcp 22 (SSH) | `PROTMON_ADMIN_NETWORKS` |
+| ICMP echo (ping) | `PROTMON_ADMIN_NETWORKS` |
+| established and related traffic, loopback, DHCP replies, IPv6 neighbor discovery and packet-too-big | anywhere |
+
+Only those two variables are read, as plain `KEY=value` lines, and IPv4 and IPv6
+entries are split into separate rules. After editing `secrets.env`:
+
+```bash
+sudo systemctl restart protmon-firewall
+sudo nft list table inet protmon        # what is active
+journalctl -u protmon-firewall -n 20
+```
+
+The script validates with `nft -c` before applying. If `PROTMON_ADMIN_NETWORKS`
+is empty or invalid, or nft rejects the ruleset, it exits non-zero and leaves
+the current rules in place, so a bad edit cannot lock out SSH. `preflight.sh`
+renders and checks the ruleset from sample addresses, so a broken script never
+deploys.
+
+Keep the stock `nftables.service` disabled. Its default `/etc/nftables.conf`
+flushes the whole ruleset when it starts.
+
+Emergency recovery, from the console or an already open session:
+
+```bash
+sudo nft delete table inet protmon      # open the box until the next restart of the unit
+```
 
 ## Safety interlocks
 
@@ -256,6 +295,26 @@ sudo /tmp/bootstrap/deploy/bootstrap.sh \
 the timer. It is idempotent, so re-running it is safe. It then prints what is
 left to do by hand: `config.json`, `secrets.env`, the static IP or DHCP
 reservation, and the firewall rules.
+
+## Replacing the SD card
+
+`bootstrap.sh` rebuilds everything except `/etc/protmon`, which holds the
+camera credentials and secrets. Keep a copy of it off the Pi:
+
+```bash
+ssh <user>@<pi> 'sudo tar -C /etc -cz protmon' > protmon-etc.tgz
+```
+
+To move to a spare card, flash Raspberry Pi OS Lite 64-bit, boot it with the
+same network reservation, and restore and bootstrap:
+
+```bash
+scp protmon-etc.tgz <user>@<pi>:/tmp/
+ssh <user>@<pi> 'sudo tar -C /etc -xzf /tmp/protmon-etc.tgz'
+# then run bootstrap.sh as in First-time setup, and reboot
+```
+
+A high-endurance card is worth buying for a box that runs unattended for years.
 
 ## Operating it
 

@@ -371,7 +371,8 @@ restart.
 `PROTMON_ADMIN_NETWORKS` is optional: a comma-separated list of CIDR networks or
 single IPs (for example `192.168.1.0/24`) allowed to use `/admin` in addition to
 localhost. Unset or empty means localhost only. An invalid value stops startup.
-Changing it needs a service restart.
+Changing it needs a service restart. The firewall also reads this list for SSH
+access and will not apply without it; see `docs/DEPLOYMENT.md`.
 
 ### Protect rule setup
 

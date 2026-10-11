@@ -29,6 +29,7 @@ mkdir -p "$STATE_DIR"
 wanted=$(mktemp)
 trap 'rm -f "$wanted"' EXIT
 reload=0
+journald=0
 
 while IFS= read -r -d '' src; do
   rel=${src#"$OVERLAY"/}
@@ -37,7 +38,10 @@ while IFS= read -r -d '' src; do
   if ! cmp -s "$src" "$dest"; then
     install -D -m "$(stat -c %a "$src")" "$src" "$dest"
     log "installed /$rel"
-    case $rel in etc/systemd/system/*) reload=1 ;; esac
+    case $rel in
+      etc/systemd/system/*) reload=1 ;;
+      etc/systemd/journald.conf.d/*) journald=1 ;;
+    esac
   fi
 done < <(find "$OVERLAY" -type f -print0)
 
@@ -73,6 +77,15 @@ for f in "$OVERLAY"/etc/systemd/system/*; do
     log "enable failed: $unit"
   fi
 done
+
+# Journald only needs a restart when its drop-in changed.
+if [ "$journald" = 1 ]; then
+  "$SYSTEMCTL" restart systemd-journald.service || log "journald restart failed"
+fi
+
+# Re-apply the firewall every run, in case secrets.env changed. A failure
+# leaves the previous rules in place and must not roll back the deploy.
+"$SYSTEMCTL" restart protmon-firewall.service || log "firewall apply failed"
 
 # Boot config is applied on the next reboot; a failure here must not roll back.
 if [ -x "$APP_DIR/deploy/boot-config.sh" ]; then

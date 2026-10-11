@@ -40,6 +40,37 @@ for unit in deploy/system/etc/systemd/system/*; do
   fi
 done
 
+# The firewall must render from sample secrets and pass nft's own check. nft -c
+# needs CAP_NET_ADMIN, so try a user+net namespace before giving up.
+fwtmp=$(mktemp -d)
+trap 'rm -rf "$fwtmp"' EXIT
+cat >"$fwtmp/secrets.env" <<'ENV'
+PROTMON_ALLOWED_IPS=192.0.2.10,2001:db8::10
+PROTMON_ADMIN_NETWORKS=198.51.100.0/24,2001:db8:1::/64
+ENV
+if PROTMON_SECRETS=$fwtmp/secrets.env deploy/system/usr/local/bin/protmon-firewall --print >"$fwtmp/rules.nft"; then
+  runner=
+  if ! command -v nft >/dev/null 2>&1; then
+    note "skip firewall nft -c (nft not installed)"
+  else
+    printf 'table inet protmon_probe\n' >"$fwtmp/probe.nft"
+    if nft -c -f "$fwtmp/probe.nft" >/dev/null 2>&1; then runner='env'
+    elif unshare -rn nft -c -f "$fwtmp/probe.nft" >/dev/null 2>&1; then runner="unshare -rn"
+    fi
+    if [ -z "$runner" ]; then
+      note "skip firewall nft -c (not permitted here)"
+    elif $runner nft -c -f "$fwtmp/rules.nft"; then
+      note "ok   firewall ruleset"
+    else
+      note "FAIL firewall ruleset rejected by nft"
+      fail=1
+    fi
+  fi
+else
+  note "FAIL firewall ruleset does not render"
+  fail=1
+fi
+
 # Hook for stack-specific checks once the server exists: validate the live
 # config against the incoming code, import the package, run unit tests.
 if [ -x deploy/preflight-app.sh ]; then

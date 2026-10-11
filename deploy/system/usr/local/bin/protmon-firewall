@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# Render and apply the inbound firewall from /etc/protmon/secrets.env.
+#
+#   protmon-firewall           apply (root)
+#   protmon-firewall --print   render the ruleset to stdout
+#
+# Only the table "inet protmon" is replaced, in one atomic nft transaction.
+# With no admin network there would be no way in over SSH, so the script
+# refuses to apply and leaves the current rules in place.
+set -euo pipefail
+
+SECRETS=${PROTMON_SECRETS:-/etc/protmon/secrets.env}
+NFT=${NFT:-nft}
+PORT=${PROTMON_PORT:-8080}
+
+log() { printf 'protmon-firewall: %s\n' "$*" >&2; }
+die() { log "$*; ruleset left unchanged"; exit 1; }
+
+# Last KEY=value line, without quotes or whitespace. The file is never sourced.
+get() { sed -n "s/^$1=//p" "$SECRETS" 2>/dev/null | tail -n1 | tr -d "\r\"' \t"; }
+
+# classify <csv>: print "4 <entry>" or "6 <entry>" per entry, fail on junk.
+classify() {
+  local e
+  local -a items
+  IFS=, read -ra items <<<"$1"
+  for e in "${items[@]}"; do
+    [ -n "$e" ] || continue
+    if [[ $e =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}(/[0-9]{1,2})?$ ]]; then
+      printf '4 %s\n' "$e"
+    elif [[ $e == *:* && $e =~ ^[0-9a-fA-F:.]+(/[0-9]{1,3})?$ ]]; then
+      printf '6 %s\n' "$e"
+    else
+      log "invalid address '$e'"
+      return 1
+    fi
+  done
+}
+
+# allow <entries> <what>: one accept rule per source; <what> is "web" or "admin".
+allow() {
+  local fam addr m icmp
+  while read -r fam addr; do
+    [ -n "$fam" ] || continue
+    if [ "$fam" = 4 ]; then m="ip saddr $addr" icmp=icmp; else m="ip6 saddr $addr" icmp=icmpv6; fi
+    if [ "$2" = admin ]; then
+      printf '    %s %s type echo-request accept\n' "$m" "$icmp"
+      printf '    %s tcp dport 22 accept\n' "$m"
+    fi
+    printf '    %s tcp dport %s accept\n' "$m" "$PORT"
+  done <<<"$1"
+}
+
+render() {
+  local admin allowed
+  admin=$(classify "$(get PROTMON_ADMIN_NETWORKS)") || return 1
+  allowed=$(classify "$(get PROTMON_ALLOWED_IPS)") || return 1
+  if [ -z "$admin" ]; then
+    log "PROTMON_ADMIN_NETWORKS is empty or missing in $SECRETS"
+    return 1
+  fi
+  cat <<RULES
+table inet protmon
+delete table inet protmon
+table inet protmon {
+  chain input {
+    type filter hook input priority 0; policy drop;
+    ct state established,related accept
+    ct state invalid drop
+    iifname "lo" accept
+    icmpv6 type { nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert, packet-too-big } accept
+    udp sport 67 udp dport 68 accept
+$(allow "$admin" admin)
+$(allow "$allowed" web)
+  }
+}
+RULES
+}
+
+rules=$(render) || die "cannot render the ruleset"
+if [ "${1:-}" = --print ]; then
+  printf '%s\n' "$rules"
+  exit 0
+fi
+
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+printf '%s\n' "$rules" >"$tmp"
+"$NFT" -c -f "$tmp" || die "nft rejected the ruleset"
+"$NFT" -f "$tmp" || die "nft failed to apply the ruleset"
+log "applied"
