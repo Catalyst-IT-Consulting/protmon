@@ -206,6 +206,19 @@ colors. Unmapped alerts ignore styling and keep their fixed look.
 Every alert needs a `duration`. There is no acknowledge step, so nothing stays up
 indefinitely. Unmapped alerts show for 30 minutes.
 
+### Carried fobs
+
+A fob is carried, so it has no fixed location. Configure it as an ordinary alert
+and decide where, if anywhere, it points:
+
+- **Text-only (default).** Set `camera` to `null` and name the person or role in
+  `text`, for example `"Panic button: front desk staff"`.
+- **Default camera.** Set `camera` only if the fob has a usual place, such as a
+  garage attendant's fob. The video shows that place, not where the fob is now.
+
+See `fob-front-desk` and `fob-garage-attendant` in
+[`config.example.json`](config.example.json).
+
 ### Video tiles
 
 An alert with a `camera` shows that camera's live video above the alert text.

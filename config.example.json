@@ -24,6 +24,18 @@
       "priority": 1,
       "camera": null,
       "duration": 1800
+    },
+    "fob-front-desk": {
+      "text": "Panic button: front desk staff",
+      "priority": 1,
+      "camera": null,
+      "duration": 1800
+    },
+    "fob-garage-attendant": {
+      "text": "Panic button: garage attendant",
+      "priority": 1,
+      "camera": "garage",
+      "duration": 1800
     }
   }
 }
