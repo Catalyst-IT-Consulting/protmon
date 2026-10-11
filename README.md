@@ -81,22 +81,28 @@ is the worst thing the system can do. Three rules follow from that:
   `X-Protmon-Token` header (never the URL, which Protect logs on a failed
   delivery) and an allowlist of the Cloud Key's source IP. Rejections are
   logged, not just dropped.
-- **Only the webhook is on the LAN.** `/healthz`, `/api/state` and `/ws` answer
-  localhost only.
+- **Only the webhook and the admin API are on the LAN.** `/healthz`,
+  `/api/state` and `/ws` answer localhost only. `/admin` answers localhost and
+  the networks listed in `PROTMON_ADMIN_NETWORKS`; anyone else gets `403`. There
+  is no admin login, so that allowlist is the only gate: list only networks you
+  trust, and keep the port off the internet. The admin connection is plain HTTP.
+  Every state-changing admin request must carry the header `X-Protmon-Admin: 1`
+  and a JSON content type, which a page on another site cannot send. Camera
+  credentials and the webhook token are never returned by the admin API.
 - **RTSP credentials stay on the Pi.** The browser only ever receives a go2rtc
   stream name. The server generates go2rtc's stream config from the `cameras`
   section of the config file, so credentials never reach the page.
 - **go2rtc binds to localhost.** Its API and web UI are not on the LAN. The
   kiosk browser is on the same box.
-- **Firewall:** inbound allows the webhook port from the Cloud Key, plus SSH
-  from the admin network. Nothing else.
+- **Firewall:** inbound allows the webhook port from the Cloud Key and from the
+  admin network (for `/admin`), plus SSH from the admin network. Nothing else.
 
 ## Non-goals
 
 - Internet exposure or remote access.
 - Replacing Protect's own notifications and recording. This is an additional,
   in-room display.
-- A web UI for editing config. Hand-edited JSON is fine.
+- Admin login. The admin network allowlist is the only gate.
 - Camera recording or playback history.
 
 ## Stack
@@ -336,6 +342,11 @@ PROTMON_ALLOWED_IPS=192.168.1.10
 
 `PROTMON_ALLOWED_IPS` is a comma-separated list of the Protect console's
 addresses.
+
+`PROTMON_ADMIN_NETWORKS` is optional: a comma-separated list of CIDR networks or
+single IPs (for example `192.168.1.0/24`) allowed to use `/admin` in addition to
+localhost. Unset or empty means localhost only. An invalid value stops startup.
+Changing it needs a service restart.
 
 ### Protect rule setup
 

@@ -47,7 +47,7 @@ Nothing operational is mixed in with the code the deployer overwrites.
 | --- | --- | --- |
 | `/opt/protmon` | git | the repo, reset hard on every deploy |
 | `/etc/protmon/config.json` | you, by hand | cameras and alerts, holds RTSP credentials |
-| `/etc/protmon/secrets.env` | you, by hand | the webhook token and allowed source IPs |
+| `/etc/protmon/secrets.env` | you, by hand | the webhook token, allowed source IPs and optional admin networks |
 | `/etc/protmon/deploy.env` | you, by hand | this host's deploy settings |
 | `/etc/protmon/HOLD` | you, by hand | exists means deploys are paused |
 | `/var/lib/protmon` | the app and deployer | active alerts, deployed commit, manifests |

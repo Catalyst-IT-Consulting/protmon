@@ -13,7 +13,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, R
 from fastapi.responses import FileResponse
 from starlette.requests import HTTPConnection
 
-from . import config, displays, protect
+from . import admin, config, displays, protect
 from .eventlog import EventLog
 from .state import State
 
@@ -74,6 +74,7 @@ async def lifespan(app):
     app.state.config_path = os.environ.get("PROTMON_CONFIG", CONFIG_PATH)
     app.state.config = config.load(app.state.config_path)  # ConfigError stops startup
     app.state.token, app.state.allowed_ips = config.load_secrets(os.environ)
+    app.state.admin_networks = config.load_admin_networks(os.environ)
     app.state.log = log = EventLog()
     app.state.alerts = State(log, path=os.environ.get("PROTMON_STATE", "/var/lib/protmon/active.json"))
     app.state.watchers = set()
@@ -100,6 +101,7 @@ async def lifespan(app):
 
 
 app = FastAPI(title="Protmon", lifespan=lifespan)
+app.include_router(admin.router)
 
 
 def local_only(conn: HTTPConnection):

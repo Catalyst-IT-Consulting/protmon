@@ -152,6 +152,15 @@ def load_secrets(env):
         raise ConfigError(f"PROTMON_ALLOWED_IPS: {e}") from e
 
 
+def load_admin_networks(env):
+    """Networks allowed to use /admin besides localhost, from PROTMON_ADMIN_NETWORKS (optional)."""
+    raw = [p.strip() for p in env.get("PROTMON_ADMIN_NETWORKS", "").split(",") if p.strip()]
+    try:
+        return [ipaddress.ip_network(p, strict=False) for p in raw]
+    except ValueError as e:
+        raise ConfigError(f"PROTMON_ADMIN_NETWORKS: {e}") from e
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         sys.exit("usage: python3 -m protmon.config PATH")

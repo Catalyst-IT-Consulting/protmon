@@ -14,7 +14,7 @@ RestartSec=2
 # Cheap hardening; the dirs are created by the deployer, so just allow writes.
 NoNewPrivileges=yes
 ProtectSystem=strict
-ReadWritePaths=/var/log/protmon /var/lib/protmon
+ReadWritePaths=/var/log/protmon /var/lib/protmon /etc/protmon
 ProtectHome=yes
 PrivateTmp=yes
 
