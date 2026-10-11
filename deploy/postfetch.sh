@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sync the pinned go2rtc binary and the server virtualenv after update.sh moves
+# Sync packages, system users, the pinned go2rtc binary and the server virtualenv after update.sh moves
 # the live tree. The venv lives in STATE_DIR so git reset --hard leaves it alone,
 # and pip only runs when requirements.txt changed. Non-zero fails the deploy and
 # rolls back.
@@ -12,6 +12,9 @@ STAMP=$STATE_DIR/venv.requirements.sha256
 
 # Lets selftest.sh run the real deployer without installing anything.
 [ -z "${PROTMON_SKIP_VENV:-}" ] || exit 0
+
+# Packages and system users, before anything below needs them.
+"$APP_DIR/deploy/host-setup.sh"
 
 # Pinned go2rtc binary, reinstalled only when its checksum does not match.
 # shellcheck source=/dev/null

@@ -1,0 +1,2 @@
+# Video mode per HDMI port, merged into cmdline.txt. No force flag, so hotplug detection keeps working.
+video=HDMI-A-1:1920x1080@60 video=HDMI-A-2:1920x1080@60

@@ -53,6 +53,7 @@ export PROTMON_SKIP_VENV=1
 export DESTDIR=$T/root
 export SYSTEMCTL=$T/bin/systemctl
 export DEPLOY_ENV=$T/deploy.env
+export PROTMON_BOOT_DIR=$T/boot
 
 # Build an origin from the real repo so the test runs against real content.
 git init -q --bare "$T/origin.git"
@@ -223,6 +224,70 @@ check "exit 0" "$rc" "0"
 check "tree at newest commit" "$(head_sha)" "$(origin_sha)"
 assert "known-bad marker cleared" [ ! -f "$T/state/failed-sha" ]
 assert "failed commit is behind us" [ "$(head_sha)" != "$bad_sha" ]
+
+case_ "12. boot config merges video= and the managed block, never reboots"
+B=$T/boot
+mkdir -p "$B"
+STOCK='console=serial0,115200 console=tty1 root=PARTUUID=8a12dc93-02 rootfstype=ext4 fsck.repair=yes rootwait'
+printf '%s\n' "$STOCK" >"$B/cmdline.txt"
+printf '[all]\narm_64bit=1\n' >"$B/config.txt"
+boot() { APP_DIR=$REPO_ROOT "$REPO_ROOT/deploy/boot-config.sh" 2>&1; }
+VIDEO=$(grep -v '^#' "$REPO_ROOT/deploy/boot/cmdline.args")
+out=$(boot)
+check "video= added once, rest kept" "$(cat "$B/cmdline.txt")" "$STOCK $VIDEO"
+assert "reboot pending logged" grep -q 'reboot pending' <<<"$out"
+assert "config.txt block inserted" grep -qx '# BEGIN protmon' "$B/config.txt"
+assert "config.txt content kept" grep -qx 'arm_64bit=1' "$B/config.txt"
+sum=$(cat "$B/cmdline.txt" "$B/config.txt")
+out=$(boot)
+check "second run changes nothing" "$(cat "$B/cmdline.txt" "$B/config.txt")" "$sum"
+refute "second run logs no reboot" grep -q 'reboot pending' <<<"$out"
+printf '%s video=HDMI-A-1:640x480@60 quiet\n' "$STOCK" >"$B/cmdline.txt"
+boot >/dev/null
+check "stale video= replaced" "$(cat "$B/cmdline.txt")" "$STOCK quiet $VIDEO"
+check "single line" "$(wc -l <"$B/cmdline.txt")" "1"
+sed -i '/^# END protmon/i stale=1' "$B/config.txt"
+printf 'after=1\n' >>"$B/config.txt"
+boot >/dev/null
+refute "stale block content replaced" grep -qx 'stale=1' "$B/config.txt"
+check "one block only" "$(grep -c '^# BEGIN protmon' "$B/config.txt")" "1"
+assert "lines after the block kept" grep -qx 'after=1' "$B/config.txt"
+out=$(PROTMON_BOOT_DIR=$T/nope boot)
+assert "missing boot dir skipped" grep -q 'skipping' <<<"$out"
+
+case_ "13. packages install only when missing and only when the list changes; kiosk user ensured"
+mkdir -p "$T/stubs" "$T/hs/deploy"
+cat >"$T/stubs/stub" <<'STUB'
+#!/bin/sh
+n=${0##*/}
+printf '%s %s\n' "$n" "$*" >>"$SELFTEST_T/hs.log"
+case $n in
+  dpkg-query) grep -Fxq "$3" "$SELFTEST_T/installed.txt" && echo "install ok installed" ;;
+  getent) grep -Fxq "$2" "$SELFTEST_T/users.txt" ;;
+esac
+STUB
+chmod +x "$T/stubs/stub"
+for n in dpkg-query apt-get getent useradd usermod; do ln -sf stub "$T/stubs/$n"; done
+printf 'git\ncurl\n' >"$T/installed.txt"
+: >"$T/users.txt"
+printf '# c\ngit\ncurl  # inline\ncage\n' >"$T/hs/deploy/packages.txt"
+hs() { # stubs resolved via PATH so the script's defaults are exercised
+  : >"$T/hs.log"
+  PATH=$T/stubs:$PATH APP_DIR=$T/hs STATE_DIR=$T/hs/state "$REPO_ROOT/deploy/host-setup.sh" 2>/dev/null
+}
+hs
+assert "only the missing package installed" grep -q '^apt-get install -y -qq cage$' "$T/hs.log"
+assert "kiosk user created" grep -q '^useradd .*protmon-kiosk' "$T/hs.log"
+hs
+refute "unchanged list skips apt" grep -q '^apt-get' "$T/hs.log"
+refute "unchanged list skips dpkg" grep -q '^dpkg-query' "$T/hs.log"
+printf 'protmon-kiosk\n' >"$T/users.txt"
+printf 'cage\n' >>"$T/installed.txt"
+printf 'grim\n' >>"$T/hs/deploy/packages.txt"
+hs
+assert "added package installed" grep -q '^apt-get install -y -qq grim$' "$T/hs.log"
+assert "existing kiosk user gets groups" grep -q '^usermod -aG video,render,input protmon-kiosk' "$T/hs.log"
+refute "existing kiosk user not recreated" grep -q '^useradd' "$T/hs.log"
 
 printf '\n%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" = 0 ]

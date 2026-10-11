@@ -73,4 +73,9 @@ for f in "$OVERLAY"/etc/systemd/system/*; do
     log "enable failed: $unit"
   fi
 done
+
+# Boot config is applied on the next reboot; a failure here must not roll back.
+if [ -x "$APP_DIR/deploy/boot-config.sh" ]; then
+  "$APP_DIR/deploy/boot-config.sh" || log "boot-config failed"
+fi
 exit 0

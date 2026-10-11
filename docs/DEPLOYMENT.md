@@ -78,6 +78,36 @@ Secrets must never go in the overlay. CI fails the build if anything that looks
 like an RTSP URL with a password appears outside `config.example.json` and the
 docs.
 
+## Host configuration
+
+A freshly flashed card plus `bootstrap.sh` reaches the same state as a running
+Pi. Everything below is applied by the deployer, so a change is a push.
+
+| What | Tracked in | Applied by |
+| --- | --- | --- |
+| apt packages | `deploy/packages.txt` | `host-setup.sh`, from `postfetch.sh`. Installs only what is missing, and only when the file changed |
+| the `protmon-kiosk` user and its groups | `deploy/host-setup.sh` | same, every deploy |
+| systemd units, logrotate, udev rules | `deploy/system/` | `install-system.sh` |
+| `video=` mode per HDMI port in `cmdline.txt` | `deploy/boot/cmdline.args` | `boot-config.sh`, from `install-system.sh` |
+| `config.txt` settings | `deploy/boot/config.txt`, kept between `# BEGIN protmon` and `# END protmon` | `boot-config.sh` |
+| go2rtc binary | `deploy/go2rtc/pin.env` | `postfetch.sh` |
+
+Boot config changes take effect on the next reboot. The deployer writes a
+`reboot pending` line to the journal and never reboots by itself. `video=`
+tokens already in `cmdline.txt` are replaced and all other tokens are kept.
+The video modes carry no force flag, so hotplug detection keeps working.
+
+Deliberately not tracked:
+
+- `/etc/protmon/config.json`: camera addresses and RTSP credentials.
+- `/etc/protmon/secrets.env`: the webhook token, allowed IPs and admin password.
+- `/etc/protmon/deploy.env`: per-host deploy settings, written once by bootstrap.
+- The deploy key under `/root/.ssh`: a credential.
+- Network addressing: a DHCP reservation on the router, not a Pi setting.
+- Debug tools installed by hand (`gdb`, `htop`, `strace` and the like): not
+  needed to run the display. The `grim` screenshot tool is tracked.
+- Stock Raspberry Pi OS settings such as volatile journald storage and time sync.
+
 ## Safety interlocks
 
 This deploys to a safety display unattended, which means the interesting cases
@@ -125,7 +155,7 @@ when the server gets built, or the safety interlocks degrade to nothing.
 | `GET /api/state` returning `{"alerts": [...], "commit": ..., "server_time": ...}` | the live-alert gate. The page consumes this too |
 | config read from `/etc/protmon/config.json` | keeps credentials out of the deployed tree |
 | state in `/var/lib/protmon`, logs in `/var/log/protmon/*.jsonl` | survives `git reset --hard`, and logrotate already covers that glob |
-| `deploy/postfetch.sh`, if dependencies need installing | run after fetch, before restart. Non-zero fails the deploy and triggers rollback. It maintains the virtualenv at `/var/lib/protmon/venv`, reinstalling only when `requirements.txt` changes |
+| `deploy/postfetch.sh`, if dependencies need installing | run after fetch, before restart. Non-zero fails the deploy and triggers rollback. It installs missing packages, ensures the kiosk user, and maintains the virtualenv at `/var/lib/protmon/venv`, reinstalling only when `requirements.txt` changes |
 | `deploy/preflight-app.sh`, for stack-specific validation | runs in the scratch extract. The place to validate the live config against incoming code |
 | the running commit shown on the idle screen | lets you read the deployed version off the wall, or off a photo of it |
 
@@ -271,7 +301,7 @@ then drives `update.sh` through the cases that matter: a no-op check, HOLD, a
 normal deploy, a docs-only deploy that must not restart the browser, overlay
 install and removal, a commit rejected by preflight, deferral on a live alert,
 `--force`, rollback of an unhealthy deploy, no retry loop on a known-bad commit,
-and recovery when a fix lands. It touches nothing real and runs in CI.
+and recovery when a fix lands. It also checks the boot config merge and the package and user logic against stubs. It touches nothing real and runs in CI.
 
 ## Zero-egress variant
 

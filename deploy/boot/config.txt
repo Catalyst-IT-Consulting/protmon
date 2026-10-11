@@ -1,0 +1,1 @@
+# No settings needed: vc4-kms-v3d takes its video modes from video= in cmdline.txt.

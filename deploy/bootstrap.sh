@@ -39,13 +39,7 @@ say() { printf '\n==> %s\n' "$*"; }
 
 say "Installing packages"
 apt-get update -qq
-apt-get install -y -qq git curl python3 python3-venv ca-certificates logrotate \
-  cage chromium fonts-dejavu-core
-
-say "Creating the kiosk user"
-id protmon-kiosk >/dev/null 2>&1 || useradd --system --create-home \
-  --home-dir /var/lib/protmon-kiosk --shell /usr/sbin/nologin \
-  --groups video,render,input protmon-kiosk
+apt-get install -y -qq git curl ca-certificates
 
 say "Creating directories"
 install -d -m 0755 "$ETC_DIR" "$STATE_DIR" "$LOG_DIR"
@@ -86,8 +80,11 @@ else
   say "Keeping existing $ETC_DIR/deploy.env"
 fi
 
-say "Installing system overlay"
+say "Installing packages and system users"
 export APP_DIR STATE_DIR
+"$APP_DIR/deploy/host-setup.sh"
+
+say "Installing system overlay and boot config"
 "$APP_DIR/deploy/install-system.sh"
 
 say "Enabling the deploy timer"
@@ -97,6 +94,8 @@ cat <<DONE
 
 Bootstrap complete. The Pi now tracks '$REF' and applies it within a minute of
 a push.
+
+Reboot once if the log above says "reboot pending", to apply the boot config.
 
 Still to do by hand on this box, once:
 
