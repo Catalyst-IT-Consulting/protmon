@@ -171,6 +171,22 @@ edit; `config.json` is gitignored because it holds camera credentials.
 | `priority` | `1`, `2` or `3`; lower is more urgent. See the tiers below |
 | `camera` | A key into `cameras`, or `null` for text-only (a room with no camera) |
 | `duration` | Seconds until the alert expires. Required; a repeat trigger restarts it |
+| `style` | Optional object that overrides the tier look; see below |
+
+`style` takes any of `fg` (text color), `bg` (background color), `alt` (second
+background color for `flash-alt`, default `#fff`) and `animation`. Colors are hex,
+`#rgb` or `#rrggbb`. Anything omitted falls back to the tier, so an alert with no
+`style` looks like its tier. Styled animations flash once per second at most:
+
+| `animation` | Effect |
+| --- | --- |
+| `none` | Static colors |
+| `flash` | Text switches on and off |
+| `flash-alt` | Background alternates between `bg` and `alt` |
+| `invert` | `fg` and `bg` swap |
+
+When `animation` is omitted the tier's own flash is used, with the custom
+colors. Unmapped alerts ignore styling and keep their fixed look.
 
 | Tier | Class | Default lifetime | Flash | Sound |
 | --- | --- | --- | --- | --- |
@@ -284,7 +300,7 @@ the allowlist gives `403`, and an unknown `<key>` shows an "Unmapped alert".
 Localhost only. `GET /api/state` returns
 `{"alerts": [...], "commit": "<sha>", "server_time": "<ISO-8601>"}`, alerts
 sorted by priority then first seen. Each alert carries `key`, `text`,
-`priority`, `camera` (the stream name, never a URL), `first_seen`, `last_seen`
+`priority`, `camera` (the stream name, never a URL), `style` (or `null`), `first_seen`, `last_seen`
 and `expires_at`.
 
 `/ws` is a WebSocket that sends `{"type": "state", "alerts": [...], "commit":

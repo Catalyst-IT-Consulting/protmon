@@ -14,8 +14,13 @@ function render(list) {
       els.set(a.key, el = document.createElement("div"));
       el.appendChild(document.createElement("span"));
     }
-    const cls = "banner p" + Math.min(Math.max(a.priority, 1), 3) + (a.unmapped ? " u" : "");
+    const st = a.unmapped ? null : a.style;
+    const cls = "banner p" + Math.min(Math.max(a.priority, 1), 3) + (a.unmapped ? " u" : "") +
+      (st ? " s a-" + (st.animation || "tier") : "");
     if (el.className !== cls) el.className = cls;
+    for (const k of ["fg", "bg", "alt"]) {
+      if (st && st[k]) el.style.setProperty("--" + k, st[k]); else el.style.removeProperty("--" + k);
+    }
     const text = el.firstChild;
     if (text.textContent !== a.text) text.textContent = a.text;
     if (a.unmapped && !el.querySelector(".tag")) {

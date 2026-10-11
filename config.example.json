@@ -8,7 +8,8 @@
       "text": "Garage Motion",
       "priority": 3,
       "camera": "garage",
-      "duration": 30
+      "duration": 30,
+      "style": { "fg": "#fff", "bg": "#006400", "animation": "flash-alt", "alt": "#003300" }
     },
     "entrance-panic": {
       "text": "Entrance Panic Button",

@@ -5,7 +5,10 @@ import re
 import sys
 
 KEY_RE = re.compile(r"[A-Za-z0-9_-]+")
-FIELDS = {"text", "priority", "camera", "duration"}
+FIELDS = {"text", "priority", "camera", "duration", "style"}
+STYLE_FIELDS = {"fg", "bg", "alt", "animation"}
+ANIMATIONS = ("none", "flash", "flash-alt", "invert")
+COLOR_RE = re.compile(r"#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})")
 PRIORITIES = (1, 2, 3)
 
 
@@ -24,6 +27,22 @@ def _no_dupes(pairs):
 
 def _is_int(v):
     return isinstance(v, int) and not isinstance(v, bool)
+
+
+def _style(key, s):
+    if s is None:
+        return None
+    if not isinstance(s, dict):
+        raise ConfigError(f"alert {key!r}: style must be an object")
+    unknown = sorted(set(s) - STYLE_FIELDS)
+    if unknown:
+        raise ConfigError(f"alert {key!r}: unknown style field(s) {', '.join(unknown)}")
+    for f in ("fg", "bg", "alt"):
+        if f in s and not (isinstance(s[f], str) and COLOR_RE.fullmatch(s[f])):
+            raise ConfigError(f"alert {key!r}: style {f} must be a hex color like #rgb or #rrggbb, got {s[f]!r}")
+    if "animation" in s and s["animation"] not in ANIMATIONS:
+        raise ConfigError(f"alert {key!r}: style animation must be one of {', '.join(ANIMATIONS)}, got {s['animation']!r}")
+    return dict(s) or None
 
 
 def _alert(key, a, cameras):
@@ -46,7 +65,7 @@ def _alert(key, a, cameras):
     dur = a.get("duration")
     if not _is_int(dur) or dur <= 0:
         raise ConfigError(f"alert {key!r}: duration must be a positive integer, got {dur!r}")
-    return {"text": text, "priority": pri, "camera": cam, "duration": dur}
+    return {"text": text, "priority": pri, "camera": cam, "duration": dur, "style": _style(key, a.get("style"))}
 
 
 def validate(raw):

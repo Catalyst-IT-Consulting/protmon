@@ -160,3 +160,26 @@ def test_save_is_atomic_and_failure_does_not_raise(mk, tmp_path):
     a.path = str(tmp_path / "nodir" / "active.json")
     a.trigger("q", LONG, "10.0.0.5")
     assert any(e["event"] == "state-save-failed" for e in events())
+
+
+def test_style_in_snapshot_and_survives_restart(mk):
+    new, _, _, path = mk
+    st = {"fg": "#fff", "animation": "invert"}
+    a = new()
+    a.trigger("p", {**LONG, "style": st}, "10.0.0.5")
+    assert a.snapshot()[0]["style"] == st
+    b = new()
+    b.restore()
+    assert b.snapshot()[0]["style"] == st
+
+
+def test_restore_state_file_without_style(mk):
+    new, _, events, path = mk
+    row = {"key": "p", "text": "P", "priority": 1, "camera": None, "first_seen": 0, "last_seen": 0,
+           "expires_wall": None, "unmapped": False}
+    json.dump({"alerts": [row]}, open(path, "w"))
+    b = new()
+    b.restore()
+    (r,) = b.snapshot()
+    assert r["key"] == "p" and r["style"] is None
+    assert not any(e["event"] == "state-restore-failed" for e in events())

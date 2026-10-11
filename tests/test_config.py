@@ -27,7 +27,7 @@ def mutated(**alert):
 def test_good_config(tmp_path):
     cfg = load(write(tmp_path, GOOD))
     assert cfg["alerts"]["garage-motion"] == {"text": "Garage Motion", "priority": 3,
-                                              "camera": "garage", "duration": 30}
+                                              "camera": "garage", "duration": 30, "style": None}
 
 
 def test_missing_duration_rejected(tmp_path):
@@ -114,3 +114,27 @@ def test_cli_exit_codes(tmp_path):
     r = run_cli(write(tmp_path, mutated(camera="nope")))
     assert r.returncode == 1
     assert "unknown camera 'nope'" in r.stderr
+
+
+def test_style_accepted():
+    st = {"fg": "#fff", "bg": "#0a0A0a", "alt": "#123", "animation": "flash-alt"}
+    assert load_dict(mutated(style=st))["alerts"]["garage-motion"]["style"] == st
+
+
+@pytest.mark.parametrize("style,msg", [
+    ({"color": "#fff"}, "unknown style field"),
+    ({"fg": "red"}, "style fg must be a hex color"),
+    ({"bg": "#12345"}, "style bg must be a hex color"),
+    ({"alt": "#fff; x"}, "style alt must be a hex color"),
+    ({"animation": "spin"}, "style animation must be one of"),
+    ("flash", "style must be an object"),
+])
+def test_bad_style_rejected(tmp_path, style, msg):
+    with pytest.raises(ConfigError, match=msg):
+        load(write(tmp_path, mutated(style=style)))
+
+
+def load_dict(data):
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        return load(write(Path(d), data))

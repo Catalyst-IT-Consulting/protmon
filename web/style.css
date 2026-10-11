@@ -28,6 +28,24 @@ body[data-view="lost"] #lost { display: flex; }
 @keyframes f2 { 0%, 100% { background-color: #ffb000; color: #000; } 50% { background-color: #000; color: #ffb000; } }
 @keyframes f3 { 0%, 100% { background-color: #0d2a5c; color: #dbe8ff; } 50% { background-color: #1b4a9e; color: #fff; } }
 
+/* per-alert style: tier supplies the default colors and animation, inline vars override */
+.banner { --alt: #fff; }
+.p1 { --fg: #fff; --bg: #e00; }
+.p2 { --fg: #000; --bg: #ffb000; }
+.p3 { --fg: #dbe8ff; --bg: #0d2a5c; }
+.s { background-color: var(--bg); color: var(--fg); border-color: var(--bg); }
+.s.p1 { animation: sinv .7s steps(1, end) infinite; }
+.s.p2 { animation: sinv 1.6s ease-in-out infinite; }
+.s.p3 { animation: spulse 4s ease-in-out infinite; }
+.s.a-none { animation: none; }
+.s.a-flash { animation: sflash 1s steps(1, end) infinite; }
+.s.a-flash-alt { animation: sflashalt 1s steps(1, end) infinite; }
+.s.a-invert { animation: sinv 1s steps(1, end) infinite; }
+@keyframes sinv { 50% { background-color: var(--fg); color: var(--bg); } }
+@keyframes spulse { 50% { background-color: color-mix(in srgb, var(--bg), #fff 25%); } }
+@keyframes sflash { 50% { color: var(--bg); } }
+@keyframes sflashalt { 50% { background-color: var(--alt); } }
+
 /* unmapped: magenta stripes and tag on top of the tier flash */
 .u { border: 1vh dashed #f0f; background-image: repeating-linear-gradient(135deg, rgba(255, 0, 255, .45) 0 3vh, transparent 3vh 6vh); }
 .tag { flex: none; font-size: .4em; padding: .15em .5em; background: #f0f; color: #000; border-radius: .2em; }
