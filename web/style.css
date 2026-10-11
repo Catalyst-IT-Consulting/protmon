@@ -3,12 +3,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #000; curs
   font-family: "DejaVu Sans", Arial, Helvetica, sans-serif; }
 
 body > * { display: none; }
+body > #stamp { display: flex; }
 body[data-view="alerts"] #alerts { display: flex; }
 body[data-view="idle"] #idle { display: flex; }
 body[data-view="lost"] #lost { display: flex; }
 
 /* alerts: one banner per alert, font scales with count so every text stays visible */
-#alerts { position: fixed; inset: 0; flex-direction: column; gap: .6vh; padding: .6vh; background: #000;
+#alerts { position: fixed; inset: 0; flex-direction: column; gap: .6vh; padding: .6vh .6vh 7vh; background: #000;
   --cols: 1; font-size: 20vh; }
 #alerts[data-n="2"] { font-size: 16vh; }
 #alerts[data-n="3"] { font-size: 12vh; }
@@ -69,3 +70,9 @@ body[data-view="lost"] #lost { display: flex; }
 #lost-title { font-size: 15vh; font-weight: 900; }
 #lost-why { font-size: 6vh; font-weight: 700; margin-top: 3vh; }
 #lost-last { font-size: 3.4vh; margin-top: 4vh; max-width: 90vw; }
+
+/* time and date strip, bottom right on every view; #alerts reserves its height */
+#stamp { position: fixed; right: 0; bottom: 0; z-index: 20; align-items: baseline; gap: 1.2vw; padding: .8vh 1.5vw;
+  font-size: 4vh; line-height: 1; color: #8a948a; background: #000; border-top-left-radius: 1vh; }
+#stamp-time { font-weight: 700; }
+body[data-view="lost"] #stamp { color: #000; background: #fc0; }

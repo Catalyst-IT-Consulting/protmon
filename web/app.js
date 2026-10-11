@@ -81,7 +81,10 @@ function tick() {
     $("lost-last").textContent = (commit ? `No contact for ${s < 120 ? s + "s" : Math.floor(s / 60) + "m"}. ` : "Connecting. ") +
       (alerts.length ? "Last known alerts: " + alerts.map(a => a.text).join(" | ") : "");
   }
-  $("clock").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const now = new Date();
+  $("clock").textContent = $("stamp-time").textContent =
+    now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  $("stamp-date").textContent = now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
   document.body.dataset.view = bad ? "lost" : alerts.length ? "alerts" : "idle";
 }
 

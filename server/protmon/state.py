@@ -6,6 +6,7 @@ from datetime import datetime
 
 
 LOST_KEY = "system-state-lost"
+PROTECT_KEY = "system-protect-unreachable"
 SYSTEM_DURATION = 1800
 FIELDS = ("key", "text", "priority", "camera", "first_seen", "last_seen", "expires_wall", "unmapped")
 
@@ -52,6 +53,15 @@ class State:
             self.save()
             self.on_change()
         return due
+
+    def clear(self, key):
+        """Remove an alert now. Returns whether it was active."""
+        a = self.alerts.pop(key, None)
+        if a:
+            self.log.write("cleared", key, priority=a["priority"])
+            self.save()
+            self.on_change()
+        return a is not None
 
     def save(self):
         """Atomically write active alerts. The lost-state notice is not persisted."""

@@ -10,6 +10,8 @@ STYLE_FIELDS = {"fg", "bg", "alt", "animation"}
 ANIMATIONS = ("none", "flash", "flash-alt", "invert")
 COLOR_RE = re.compile(r"#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})")
 PRIORITIES = (1, 2, 3)
+PROTECT_FIELDS = {"address", "interval", "failures"}
+HOST_RE = re.compile(r"[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?")
 
 
 class ConfigError(Exception):
@@ -68,9 +70,29 @@ def _alert(key, a, cameras):
     return {"text": text, "priority": pri, "camera": cam, "duration": dur, "style": _style(key, a.get("style"))}
 
 
+def _protect(p):
+    if p is None:
+        return None
+    if not isinstance(p, dict):
+        raise ConfigError("protect must be an object")
+    unknown = sorted(set(p) - PROTECT_FIELDS)
+    if unknown:
+        raise ConfigError(f"protect: unknown field(s) {', '.join(unknown)}")
+    addr = p.get("address")
+    if not isinstance(addr, str) or not HOST_RE.fullmatch(addr):
+        raise ConfigError(f"protect: address must be a host name or IPv4 address without scheme or path, got {addr!r}")
+    out = {"address": addr}
+    for f, default in (("interval", 30), ("failures", 3)):
+        v = p.get(f, default)
+        if not _is_int(v) or v <= 0:
+            raise ConfigError(f"protect: {f} must be a positive integer, got {v!r}")
+        out[f] = v
+    return out
+
+
 def validate(raw):
-    if not isinstance(raw, dict) or set(raw) != {"cameras", "alerts"}:
-        raise ConfigError("top level must be an object with exactly 'cameras' and 'alerts'")
+    if not isinstance(raw, dict) or not {"cameras", "alerts"} <= set(raw) <= {"cameras", "alerts", "protect"}:
+        raise ConfigError("top level must be an object with 'cameras' and 'alerts', and optionally 'protect'")
     cameras, alerts = raw["cameras"], raw["alerts"]
     if not isinstance(cameras, dict) or not isinstance(alerts, dict):
         raise ConfigError("'cameras' and 'alerts' must be objects")
@@ -80,6 +102,7 @@ def validate(raw):
     return {
         "cameras": dict(cameras),
         "alerts": {k: _alert(k, a, cameras) for k, a in alerts.items()},
+        "protect": _protect(raw.get("protect")),
     }
 
 

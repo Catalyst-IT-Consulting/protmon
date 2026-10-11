@@ -13,7 +13,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, R
 from fastapi.responses import FileResponse
 from starlette.requests import HTTPConnection
 
-from . import config
+from . import config, protect
 from .eventlog import EventLog
 from .state import State
 
@@ -74,10 +74,12 @@ async def lifespan(app):
     except RuntimeError as e:  # not the main thread (test clients)
         print(f"protmon: SIGHUP reload disabled: {e}", file=sys.stderr)
     sweeper = asyncio.create_task(_sweep(app.state.alerts))
+    checker = asyncio.create_task(protect.watch(app))
     try:
         yield
     finally:
         sweeper.cancel()
+        checker.cancel()
         loop.remove_signal_handler(signal.SIGHUP)  # False if never installed
         log.close()
 

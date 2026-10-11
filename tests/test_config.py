@@ -138,3 +138,33 @@ def load_dict(data):
     import tempfile
     with tempfile.TemporaryDirectory() as d:
         return load(write(Path(d), data))
+
+
+def with_protect(p):
+    return {**GOOD, "protect": p}
+
+
+def test_protect_absent_is_off(tmp_path):
+    assert load(write(tmp_path, GOOD))["protect"] is None
+
+
+def test_protect_defaults(tmp_path):
+    cfg = load(write(tmp_path, with_protect({"address": "192.0.2.10"})))
+    assert cfg["protect"] == {"address": "192.0.2.10", "interval": 30, "failures": 3}
+
+
+@pytest.mark.parametrize("p,msg", [
+    ({}, "address"),
+    ({"address": ""}, "address"),
+    ({"address": "https://192.0.2.10"}, "address"),
+    ({"address": "192.0.2.10/x"}, "address"),
+    ({"address": "h", "interval": 0}, "interval"),
+    ({"address": "h", "interval": True}, "interval"),
+    ({"address": "h", "failures": -1}, "failures"),
+    ({"address": "h", "failures": "3"}, "failures"),
+    ({"address": "h", "port": 443}, "unknown field.*port"),
+    ("10.0.0.1", "must be an object"),
+])
+def test_protect_rejections(tmp_path, p, msg):
+    with pytest.raises(ConfigError, match=msg):
+        load(write(tmp_path, with_protect(p)))

@@ -197,6 +197,32 @@ colors. Unmapped alerts ignore styling and keep their fixed look.
 Every alert needs a `duration`. There is no acknowledge step, so nothing stays up
 indefinitely. Unmapped alerts show for 30 minutes.
 
+### Protect reachability
+
+An optional `protect` section makes the server check that the Protect console is
+up:
+
+```json
+"protect": { "address": "192.0.2.10", "interval": 30, "failures": 3 }
+```
+
+| Field | Meaning |
+| --- | --- |
+| `address` | Host name or IPv4 address of the console, no scheme or path. Required if `protect` is present |
+| `interval` | Seconds between checks. Default `30` |
+| `failures` | Consecutive failed checks before alerting. Default `3` |
+
+Each check is an HTTPS request to `https://<address>/` (certificate not verified,
+since the console uses a self-signed one). Any HTTP response counts as up; a
+refused connection, TLS error or timeout counts as a failure. After `failures` in
+a row the server raises a priority 1 system alert, "Protect unreachable", and
+keeps it up for as long as the checks fail. It clears on the first successful
+check. The events `protect-unreachable` and `protect-restored` are logged. With
+no `protect` section the check is off.
+
+This proves the console answers HTTPS. It does not prove that Alarm Manager rules
+still fire, so a quiet screen is not a guarantee that Protect is alerting.
+
 Alerts reference cameras **by name**, which is what makes the eventual move to
 UniFi cameras a URL change under `cameras` and nothing more. Use each camera's
 low-resolution H.264 substream: WebRTC support for H.265 is unreliable, and a
