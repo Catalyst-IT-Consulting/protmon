@@ -346,8 +346,8 @@ Deploy log events, all written to `deploy.jsonl` and the journal:
 `rollback-unhealthy`, `remote-unreachable`, `fetch-failed`, `fatal`.
 
 The events worth alerting on are `rollback-unhealthy`, `defer-overdue`, and
-repeated `preflight-failed`. Fold them into whatever the heartbeat reports, so a
-Pi stuck on an old commit is visible without logging into it.
+repeated `preflight-failed`. Feed them to the site's monitoring, so a Pi stuck
+on an old commit is visible without logging into it.
 
 ## Testing the deployer
 
@@ -374,4 +374,4 @@ GitHub --> LAN mirror: git fetch --mirror  <--pull-- Pi (LAN only)
 
 Only `DEPLOY_REMOTE` on the Pi changes. The rest of the mechanism is identical.
 The cost is a second moving part in the path, and a mirror that can silently
-fall behind, so the heartbeat should report the deployed commit either way.
+fall behind, so monitoring should check the deployed commit either way.

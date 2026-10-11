@@ -65,8 +65,8 @@ is the worst thing the system can do. Three rules follow from that:
   blanks the alert.
 - **A dead sign must not look like a quiet one.** Idle shows a dim clock and an
   "All clear / system OK" status, never a blank screen. The page flags a lost
-  server connection prominently, and an external heartbeat catches a Pi that has
-  stopped checking in entirely.
+  server connection prominently. Detecting a Pi that is off entirely is left to
+  the site's own uptime monitoring.
 - **Nothing is dropped silently.** Unmapped paths show an "Unmapped alert"
   banner and get logged. Rejected auth gets logged. Active alerts survive a
   reboot via persisted state. A priority-1 alert stays up for its full
@@ -312,7 +312,7 @@ the build order below proceeds. The build order, tracked as milestones, is:
 3. Text-only page, tested fully before any video is added
 4. Persistence across restart
 5. go2rtc integration, tile layout, stream cap, text-only fallback
-6. Hardening: systemd, kiosk, heartbeat, firewall, rebuild docs
+6. Hardening: systemd, kiosk, firewall, rebuild docs
 
 Step 0, the deploy pipeline, is done, which means steps 1 through 6 ship by
 push rather than by SSH.
