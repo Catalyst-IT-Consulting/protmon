@@ -3,6 +3,8 @@ const DRIFT_MS = 60000;
 const $ = id => document.getElementById(id);
 const els = new Map();
 let ws, retry, delay = 1000, live = false, commit, alerts = [];
+// two-screen layout: ?video=right puts the video on the right screen
+if (new URLSearchParams(location.search).get("video") === "right") document.body.dataset.side = "right";
 const GO2RTC = `${location.hostname}:1984`;
 const SHOW_MS = 5000, RETRY_MS = 15000;  // note after 5s without frames, new player every 15s
 const tiles = new Map();  // camera -> {div, el, gen, t0, ok, pos}

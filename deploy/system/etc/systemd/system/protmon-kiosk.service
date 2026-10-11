@@ -20,7 +20,7 @@ RuntimeDirectory=protmon-kiosk
 Environment=HOME=/run/protmon-kiosk
 # Wait for the server (up to 60 s) so the first load is not an error page.
 ExecStartPre=/bin/sh -c 'for _ in $$(seq 60); do curl -fso /dev/null http://127.0.0.1:8080/healthz && exit 0; sleep 1; done; exit 0'
-ExecStart=/usr/bin/cage -d -- /usr/bin/chromium \
+ExecStart=/usr/bin/cage -d -m extend -- /usr/bin/chromium \
   --kiosk --incognito --user-data-dir=/run/protmon-kiosk/profile \
   --ozone-platform=wayland --noerrdialogs --disable-infobars --no-first-run \
   --disable-session-crashed-bubble --disable-features=Translate \

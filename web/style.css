@@ -60,13 +60,15 @@ body[data-view="alerts"][data-video] #video { display: grid; }
 .note { display: none; position: absolute; inset: 0; align-items: center; justify-content: center;
   background: #000; color: #8a948a; font-size: 3vh; }
 .tile.bad .note { display: flex; }
-body[data-video] #alerts { top: 80vh; display: grid; grid-auto-flow: column; gap: .4vh; padding: .4vh .6vh 7vh;
-  grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); grid-template-columns: repeat(var(--vcols), minmax(0, 1fr)); }
-body[data-video] #alerts[data-r="1"] { font-size: 6vh; }
-body[data-video] #alerts[data-r="2"] { font-size: 3vh; }
-body[data-video] #alerts[data-r="3"] { font-size: 2.4vh; }
-body[data-video] #alerts[data-r="4"] { font-size: 2vh; }
-body[data-video] .banner { padding: 0 1vw; gap: 1vw; }
+@media not all and (min-aspect-ratio: 3/1) {
+  body[data-video] #alerts { top: 80vh; display: grid; grid-auto-flow: column; gap: .4vh; padding: .4vh .6vh 7vh;
+    grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); grid-template-columns: repeat(var(--vcols), minmax(0, 1fr)); }
+  body[data-video] #alerts[data-r="1"] { font-size: 6vh; }
+  body[data-video] #alerts[data-r="2"] { font-size: 3vh; }
+  body[data-video] #alerts[data-r="3"] { font-size: 2.4vh; }
+  body[data-video] #alerts[data-r="4"] { font-size: 2vh; }
+  body[data-video] .banner { padding: 0 1vw; gap: 1vw; }
+}
 
 /* unmapped: magenta stripes and tag on top of the tier flash */
 .u { border: 1vh dashed #f0f; background-image: repeating-linear-gradient(135deg, rgba(255, 0, 255, .45) 0 3vh, transparent 3vh 6vh); }
@@ -97,3 +99,12 @@ body[data-video] .banner { padding: 0 1vw; gap: 1vw; }
   font-size: 4vh; line-height: 1; color: #8a948a; background: #000; border-top-left-radius: 1vh; }
 #stamp-time { font-weight: 700; }
 body[data-view="lost"] #stamp { color: #000; background: #fc0; }
+
+/* two screens (window about 3:1): video on one half, the other half is a full sign; --tx is the text half's left edge */
+@media (min-aspect-ratio: 3/1) {
+  body { --tx: 50vw; }
+  body[data-side="right"] { --tx: 0px; }
+  #alerts, #idle, #lost { inset: 0 auto 0 var(--tx); width: 50vw; }
+  #video { inset: 0 auto 0 calc(50vw - var(--tx)); width: 50vw; }
+  #stamp { right: calc(50vw - var(--tx)); }
+}

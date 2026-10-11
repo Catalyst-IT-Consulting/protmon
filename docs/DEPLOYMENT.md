@@ -161,6 +161,26 @@ off" and "CEC" energy options if it still sleeps.
 On-site checks: power cycle the Pi and confirm it reaches the idle screen
 unattended, then leave it 24 hours and confirm nothing dims or blanks.
 
+### Two displays
+
+Cage runs in `-m extend` mode, so Chromium's one window spans every connected
+output. When the window is about two screens wide (aspect ratio 3:1 or wider)
+the page splits its roles: the left screen shows the video tiles at full
+height, the right screen is a complete text sign (alert banners, idle clock,
+connection-lost screen, and the time and date strip). The video screen is black
+when no camera is attached to an alert. To put the video on the right instead,
+point the kiosk at `http://127.0.0.1:8080/?video=right`.
+
+With one display, or when either display is unplugged, the layout shrinks to
+one screen and the page falls back to the single-screen layout (video above the
+text panel) without a reload. The stream limit (`video.max_streams`) counts
+streams across both screens.
+
+The server checks `/sys/class/drm/*-HDMI-*/status` every 5 seconds and writes
+these events to the event log: `displays` once at startup (connected and known
+connectors), then `display-connected` or `display-disconnected` with the
+`connector` name whenever one changes.
+
 ## go2rtc
 
 `protmon-go2rtc.service` runs go2rtc as a transient unprivileged user and turns
