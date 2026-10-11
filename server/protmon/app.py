@@ -112,7 +112,8 @@ def _now():
 
 
 def _state_doc():
-    return {"alerts": app.state.alerts.snapshot(), "commit": COMMIT, "server_time": _now()}
+    return {"alerts": app.state.alerts.snapshot(), "commit": COMMIT, "server_time": _now(),
+            "max_streams": app.state.config["video"]["max_streams"]}
 
 
 PAGE_FILES = {"app.js": "text/javascript", "style.css": "text/css"}

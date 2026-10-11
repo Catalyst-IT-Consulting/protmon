@@ -11,10 +11,11 @@ import tempfile
 from . import config
 
 # Everything on loopback: the browser is on this box. Streams open on demand
-# because no stream is preloaded.
+# because no stream is preloaded. `origin` lets the page on :8080 load the player.
 HEAD = """\
 api:
   listen: "127.0.0.1:1984"
+  origin: "*"
 rtsp:
   listen: ""
 srtp:

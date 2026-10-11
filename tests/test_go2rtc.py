@@ -16,6 +16,7 @@ def test_render_has_streams_and_loopback_only():
     assert '  "front door": "rtsp://u:p%40ss@192.0.2.22:554/x?a=1"\n' in out
     assert 'listen: "127.0.0.1:1984"' in out
     assert 'listen: "127.0.0.1:8555"' in out
+    assert 'origin: "*"' in out
     assert "stun" not in out and "0.0.0.0" not in out and "preload" not in out
 
 

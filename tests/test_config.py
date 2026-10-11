@@ -168,3 +168,20 @@ def test_protect_defaults(tmp_path):
 def test_protect_rejections(tmp_path, p, msg):
     with pytest.raises(ConfigError, match=msg):
         load(write(tmp_path, with_protect(p)))
+
+
+def test_video_defaults_and_override(tmp_path):
+    assert load(write(tmp_path, GOOD))["video"] == {"max_streams": 2}
+    assert load(write(tmp_path, {**GOOD, "video": {"max_streams": 4}}))["video"] == {"max_streams": 4}
+
+
+@pytest.mark.parametrize("v,msg", [
+    ({"max_streams": 0}, "max_streams"),
+    ({"max_streams": True}, "max_streams"),
+    ({"max_streams": "2"}, "max_streams"),
+    ({"max": 2}, "unknown field.*max"),
+    (2, "must be an object"),
+])
+def test_video_rejections(tmp_path, v, msg):
+    with pytest.raises(ConfigError, match=msg):
+        load(write(tmp_path, {**GOOD, "video": v}))

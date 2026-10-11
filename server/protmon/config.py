@@ -10,6 +10,7 @@ STYLE_FIELDS = {"fg", "bg", "alt", "animation"}
 ANIMATIONS = ("none", "flash", "flash-alt", "invert")
 COLOR_RE = re.compile(r"#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})")
 PRIORITIES = (1, 2, 3)
+VIDEO_FIELDS = {"max_streams"}
 PROTECT_FIELDS = {"address", "interval", "failures"}
 HOST_RE = re.compile(r"[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?")
 
@@ -90,9 +91,23 @@ def _protect(p):
     return out
 
 
+def _video(v):
+    if v is None:
+        v = {}
+    if not isinstance(v, dict):
+        raise ConfigError("video must be an object")
+    unknown = sorted(set(v) - VIDEO_FIELDS)
+    if unknown:
+        raise ConfigError(f"video: unknown field(s) {', '.join(unknown)}")
+    n = v.get("max_streams", 2)
+    if not _is_int(n) or n <= 0:
+        raise ConfigError(f"video: max_streams must be a positive integer, got {n!r}")
+    return {"max_streams": n}
+
+
 def validate(raw):
-    if not isinstance(raw, dict) or not {"cameras", "alerts"} <= set(raw) <= {"cameras", "alerts", "protect"}:
-        raise ConfigError("top level must be an object with 'cameras' and 'alerts', and optionally 'protect'")
+    if not isinstance(raw, dict) or not {"cameras", "alerts"} <= set(raw) <= {"cameras", "alerts", "protect", "video"}:
+        raise ConfigError("top level must be an object with 'cameras' and 'alerts', and optionally 'protect' and 'video'")
     cameras, alerts = raw["cameras"], raw["alerts"]
     if not isinstance(cameras, dict) or not isinstance(alerts, dict):
         raise ConfigError("'cameras' and 'alerts' must be objects")
@@ -103,6 +118,7 @@ def validate(raw):
         "cameras": dict(cameras),
         "alerts": {k: _alert(k, a, cameras) for k, a in alerts.items()},
         "protect": _protect(raw.get("protect")),
+        "video": _video(raw.get("video")),
     }
 
 

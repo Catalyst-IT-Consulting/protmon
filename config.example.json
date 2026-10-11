@@ -4,6 +4,7 @@
     "entrance": "rtsp://user:pass@192.0.2.22/stream2"
   },
   "protect": { "address": "192.0.2.10", "interval": 30, "failures": 3 },
+  "video": { "max_streams": 2 },
   "alerts": {
     "garage-motion": {
       "text": "Garage Motion",

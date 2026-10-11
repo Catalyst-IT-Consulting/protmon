@@ -197,6 +197,32 @@ colors. Unmapped alerts ignore styling and keep their fixed look.
 Every alert needs a `duration`. There is no acknowledge step, so nothing stays up
 indefinitely. Unmapped alerts show for 30 minutes.
 
+### Video tiles
+
+An alert with a `camera` shows that camera's live video above the alert text.
+An optional `video` section caps how many streams play at once:
+
+```json
+"video": { "max_streams": 2 }
+```
+
+| Field | Meaning |
+| --- | --- |
+| `max_streams` | Most simultaneous video streams, a positive integer. Default `2` |
+
+Alerts are taken in display order (priority, then first seen), one tile per
+camera. The first `max_streams` cameras get tiles and the rest stay text-only,
+so the lowest priority alerts lose their video first. The video area takes the
+top 80% of the screen with the highest priority tile largest; the text panel
+below lists every active alert and never overlaps the video. Without a camera
+alert the text fills the screen. A stream closes when its alert clears.
+
+The page plays each stream from go2rtc (`127.0.0.1:1984`, stream name = camera
+key) over a WebSocket using go2rtc's own player. If no frames arrive within 5
+seconds, or the stream drops or the camera is offline, the tile shows "video
+unavailable" and the page retries every 15 seconds. The alert text is never
+affected.
+
 ### Protect reachability
 
 An optional `protect` section makes the server check that the Protect console is
@@ -327,7 +353,7 @@ the allowlist gives `403`, and an unknown `<key>` shows an "Unmapped alert".
 ## State feed
 
 Localhost only. `GET /api/state` returns
-`{"alerts": [...], "commit": "<sha>", "server_time": "<ISO-8601>"}`, alerts
+`{"alerts": [...], "commit": "<sha>", "server_time": "<ISO-8601>", "max_streams": 2}`, alerts
 sorted by priority then first seen. Each alert carries `key`, `text`,
 `priority`, `camera` (the stream name, never a URL), `style` (or `null`), `first_seen`, `last_seen`
 and `expires_at`.

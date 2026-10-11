@@ -90,7 +90,8 @@ def test_state_shape_and_no_camera_url(cfg_path):
         post(c, "garage-motion")
         post(c, "panic")
         doc = c.get("/api/state").json()
-    assert set(doc) == {"alerts", "commit", "server_time"}
+    assert set(doc) == {"alerts", "commit", "server_time", "max_streams"}
+    assert doc["max_streams"] == 2
     assert doc["server_time"][-6] in "+-" and doc["commit"]
     assert [a["key"] for a in doc["alerts"]] == ["panic", "garage-motion"]
     assert doc["alerts"][1]["camera"] == "garage"
