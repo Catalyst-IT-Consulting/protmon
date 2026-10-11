@@ -23,7 +23,7 @@ class State:
         self.alerts = {}
         self.on_change = lambda: None
 
-    def trigger(self, key, entry, source_ip, body=None):
+    def trigger(self, key, entry, source_ip, body=None, manual=False):
         """Create or refresh an alert. entry is a config alert dict, or None if unmapped."""
         unmapped = entry is None
         if entry is None:
@@ -38,6 +38,8 @@ class State:
                  style=entry.get("style"), last_seen=wall, deadline=None if dur is None else now + dur,
                  expires_wall=None if dur is None else wall + dur)
         extra = {} if body is None else {"body": body}
+        if manual:
+            extra["manual"] = True
         self.log.write(event, key, priority=a["priority"], source_ip=source_ip, **extra)
         self.save()
         self.on_change()
@@ -54,11 +56,12 @@ class State:
             self.on_change()
         return due
 
-    def clear(self, key):
+    def clear(self, key, source_ip=None, manual=False):
         """Remove an alert now. Returns whether it was active."""
         a = self.alerts.pop(key, None)
         if a:
-            self.log.write("cleared", key, priority=a["priority"])
+            extra = {"source_ip": source_ip, "manual": True} if manual else {}
+            self.log.write("cleared", key, priority=a["priority"], **extra)
             self.save()
             self.on_change()
         return a is not None

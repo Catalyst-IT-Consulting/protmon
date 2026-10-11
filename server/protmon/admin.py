@@ -286,3 +286,29 @@ def get_events(request: Request, key: str = "", event: str = "", since: str = ""
         last = out[-1]["ts"]
         nxt = f"{last},{sum(r['ts'] == last for r in out) + (int(n) if last == cur_ts and n.isdigit() else 0)}"
     return {"events": out, "more": more, "next": nxt}
+
+
+def _ip(request):
+    return request.client.host if request.client else None
+
+
+@router.get("/active")
+async def get_active(request: Request):
+    return request.app.state.alerts.snapshot()
+
+
+@router.post("/active/{key}/trigger")
+async def trigger_alert(request: Request, key: str):
+    st = request.app.state
+    entry = st.config["alerts"].get(key)
+    if entry is None:
+        raise HTTPException(404, "no such alert in the saved config")
+    st.alerts.trigger(key, entry, _ip(request), manual=True)
+    return {"ok": True}
+
+
+@router.post("/active/{key}/cancel")
+async def cancel_alert(request: Request, key: str):
+    if not request.app.state.alerts.clear(key, _ip(request), manual=True):
+        raise HTTPException(404, "alert is not active")
+    return {"ok": True}

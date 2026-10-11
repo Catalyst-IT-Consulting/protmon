@@ -9,6 +9,11 @@
 <body>
 <h1>Protmon admin</h1>
 <section>
+  <h2>Active alerts</h2>
+  <p class="hint">Alerts currently on the wall. Cancelling removes one now.</p>
+  <div id="active"></div>
+</section>
+<section>
   <h2>Alerts</h2>
   <p class="hint">Listed in wall order: priority 1 first. Each alert has its own webhook URL for an Alarm Manager rule.</p>
   <div id="alerts"></div>
@@ -44,7 +49,7 @@
     <button type="submit">Search</button>
   </form>
   <datalist id="event-types">
-    <option value="raised"><option value="refreshed"><option value="cleared"><option value="expired">
+    <option value="received"><option value="raised"><option value="refreshed"><option value="cleared"><option value="expired">
     <option value="unmapped"><option value="rejected-auth"><option value="rejected-admin">
     <option value="config-reloaded"><option value="config-changed"><option value="config-reload-failed">
     <option value="protect-unreachable"><option value="protect-restored"><option value="startup">

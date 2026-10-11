@@ -283,3 +283,26 @@ def test_events_paging_same_second(client, cfg_path, tmp_path):
 def test_events_forbidden_outside_network(cfg_path):
     with TestClient(app, client=("198.51.100.30", 1), headers=AUTH) as c:
         assert c.get("/admin/api/events").status_code == 403
+
+
+def test_manual_trigger_and_cancel(client, events):
+    assert client.get("/admin/api/active").json() == []
+    assert client.post("/admin/api/active/panic/trigger", json={}, headers=H).status_code == 200
+    act = client.get("/admin/api/active").json()
+    assert [(a["key"], a["priority"], a["text"]) for a in act] == [("panic", 1, "Panic")]
+    assert client.post("/admin/api/active/panic/cancel", json={}, headers=H).status_code == 200
+    assert client.get("/admin/api/active").json() == []
+    ev = [e for e in events() if e["event"] in ("received", "cleared")]
+    assert [(e["event"], e["key"], e["source_ip"], e["manual"]) for e in ev] == [
+        ("received", "panic", "127.0.0.1", True), ("cleared", "panic", "127.0.0.1", True)]
+
+
+def test_manual_trigger_cancel_unknown_404(client):
+    assert client.post("/admin/api/active/nope/trigger", json={}, headers=H).status_code == 404
+    assert client.post("/admin/api/active/panic/cancel", json={}, headers=H).status_code == 404
+
+
+def test_manual_trigger_needs_admin_header(client):
+    assert client.post("/admin/api/active/panic/trigger", json={}).status_code == 403
+    assert client.post("/admin/api/active/panic/cancel", json={}).status_code == 403
+    assert client.get("/admin/api/active").json() == []

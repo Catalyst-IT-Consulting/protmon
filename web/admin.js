@@ -60,6 +60,32 @@ function setStatus(msg, cls) {
   s.className = cls || "";
 }
 
+async function post(path) {
+  const r = await fetch("/admin/api/active" + path, {
+    method: "POST", headers: { "content-type": "application/json", "x-protmon-admin": "1" }, body: "{}",
+  });
+  const doc = await r.json().catch(() => ({}));
+  return r.status === 200 ? null : doc.detail || `Request failed (${r.status})`;
+}
+
+async function loadActive() {
+  const r = await fetch("/admin/api/active");
+  if (r.status !== 200) return;
+  const list = await r.json();
+  $("active").replaceChildren(...(list.length ? list.map((a) => {
+    const b = el("button", { type: "button", textContent: "Cancel" });
+    b.onclick = async () => {
+      if (a.priority === 1 && !confirm(`Cancel priority 1 alert "${a.key}"?`)) return;
+      const err = await post(`/${encodeURIComponent(a.key)}/cancel`);
+      setStatus(err || `Cancelled ${a.key}.`, err ? "err" : "ok");
+      loadActive();
+      loadLog(false);
+    };
+    return el("div", { className: "card row" },
+      el("span", { textContent: `P${a.priority} ${a.key}: ${a.text}` + (a.expires_at ? ` (expires ${a.expires_at.replace("T", " ")})` : "") }), b);
+  }) : [el("p", { className: "hint", textContent: "None." })]));
+}
+
 function usedBy(camera) {
   return alerts.filter((a) => a.camera === camera).map((a) => a.key);
 }
@@ -108,6 +134,17 @@ function renderAlerts() {
     };
     const del = el("button", { type: "button", textContent: "Delete" });
     del.onclick = () => { alerts = alerts.filter((x) => x !== a); renderAlerts(); };
+    const trig = el("button", { type: "button", textContent: "Trigger", disabled: !a.orig || a.orig !== a.key });
+    trig.title = "Save first to trigger a new or renamed alert";
+    trig.onclick = async () => {
+      const saved = a.orig;
+      if (!confirm(`Show "${saved}" on the live wall now, using the saved config (unsaved edits are ignored)? Active alerts defer deploys.`)) return;
+      const err = await post(`/${encodeURIComponent(saved)}/trigger`);
+      setStatus(err || `Triggered ${saved}.`, err ? "err" : "ok");
+      loadActive();
+      loadLog(false);
+    };
+    keyIn.addEventListener("input", () => { trig.disabled = !a.orig || a.orig !== a.key; });
     return el("div", { className: "card" },
       el("div", { className: "row" },
         field("Key", keyIn),
@@ -115,7 +152,7 @@ function renderAlerts() {
         field("Duration (s)", input(a, "duration", { type: "number", min: 1, step: 1 })),
         field("Camera", select(a, "camera", [["", "none (text only)"], ...names.map((n) => [n, n])])),
         field("Text", input(a, "text"), "grow"),
-        del),
+        trig, del),
       el("div", { className: "row" },
         el("label", { className: "inline" }, previewBox(a), "Preview"),
         field("Text color", input(a, "fg", { className: "short", placeholder: "#rrggbb" })),
@@ -268,3 +305,5 @@ $("save").onclick = save;
 $("reload").onclick = () => load("Reloaded.");
 load();
 loadLog(false);
+loadActive();
+setInterval(loadActive, 5000);
