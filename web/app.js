@@ -3,7 +3,8 @@ const DRIFT_MS = 60000;
 const GRACE_MS = 5000;  // reconnect time before the lost screen shows
 const $ = id => document.getElementById(id);
 const els = new Map();
-let ws, retry, delay = 1000, live = false, commit, alerts = [];
+const PROTECT_KEY = "system-protect-unreachable";  // shown as the lost screen, not a banner
+let ws, retry, delay = 1000, live = false, commit, alerts = [], protectDown = false;
 // two-screen layout: ?video=right puts the video on the right screen
 if (new URLSearchParams(location.search).get("video") === "right") document.body.dataset.side = "right";
 const PREVIEW = location.pathname === "/admin/preview";  // admin embeds the page and posts alerts to it
@@ -137,7 +138,8 @@ function onMsg(m) {
   if (m.type !== "state") return;
   if (commit && m.commit !== commit) return location.reload();
   commit = m.commit;
-  alerts = m.alerts;
+  protectDown = m.alerts.some(a => a.key === PROTECT_KEY);
+  alerts = m.alerts.filter(a => a.key !== PROTECT_KEY);
   cap = m.max_streams || 2;
   $("version").textContent = "Version: " + commit.slice(0, 7);
   $("ip").textContent = "IP: " + m.ip;
@@ -166,6 +168,7 @@ function connect() {
 function problem() {
   if (!live) return performance.now() - lostAt > GRACE_MS ? "Server not reachable" : null;
   if (srv && Math.abs(Date.now() - (srv.ms + performance.now() - srv.at)) > DRIFT_MS) return "Clock out of sync with server";
+  if (protectDown && !alerts.length) return "Protect not reachable";
 }
 
 function tick() {
@@ -175,7 +178,7 @@ function tick() {
   if (bad) {
     const s = Math.round((performance.now() - (lostAt || lastMsg)) / 1000);
     $("lost-why").textContent = bad;
-    $("lost-last").textContent = (commit ? `No contact for ${s < 120 ? s + "s" : Math.floor(s / 60) + "m"}. ` : "Connecting. ") +
+    $("lost-last").textContent = live ? "" : (commit ? `No contact for ${s < 120 ? s + "s" : Math.floor(s / 60) + "m"}. ` : "Connecting. ") +
       (alerts.length ? "Last known alerts: " + alerts.map(a => a.text).join(" | ") : "");
   }
   const now = new Date();
